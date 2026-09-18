@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../css/style.css">
+<style>.narrow { width: 320px; }</style>
+</head><body>
+<main id="app" class="narrow"></main>
+<script src="../js/calc.js"></script>
+<script src="../js/ui.js"></script>
+<script>
+ProtUI.mount(document.getElementById('app'));
+var btns = document.querySelectorAll('.equip-row[data-slot="helmet"] .mat');
+var six = btns[5].getBoundingClientRect();
+var one = btns[0].getBoundingClientRect();
+console.log('[narrow] 6th wraps to next line: ' + (six.top > one.top ? 'pass' : 'FAIL')
+  + ' (1st top=' + one.top + ', 6th top=' + six.top + ')');
+</script>
+</body></html>

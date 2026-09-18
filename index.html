@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prot</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="site-head">
+  <h1>prot</h1>
+  <p>minecraft 1.8.9 damage reduction calculator</p>
+</header>
+<main id="app"></main>
+<script src="js/calc.js"></script>
+<script src="js/selftest.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  var fails = ProtSelftest(ProtCalc, function (line) { console.log('[selftest] ' + line); });
+  if (fails) console.error('[selftest] ' + fails + ' failing');
+  ProtUI.mount(document.getElementById('app'));
+</script>
+</body>
+</html>

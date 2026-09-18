@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ui-test</title></head>
+<body>
+<script src="../js/calc.js"></script>
+<script src="../js/ui.js"></script>
+<script>
+(function () {
+  function log(s) { console.log('[uitest] ' + s); }
+  var failures = 0;
+  function check(name, cond) { if (!cond) failures++; log((cond ? 'pass' : 'FAIL') + '  ' + name); }
+
+  try {
+    var mount = document.createElement('div');
+    document.body.appendChild(mount);
+    var app = ProtUI.mount(mount);
+
+    // --- four armor rows exist, ordered top to bottom ---
+    var rows = mount.querySelectorAll('.equip-row');
+    check('four equip rows', rows.length === 4);
+    check('row order: helmet first', rows[0] && rows[0].dataset.slot === 'helmet');
+    check('row order: boots last', rows[3] && rows[3].dataset.slot === 'boots');
+
+    // --- each row has 6 material buttons incl. none, with texture img from site assets ---
+    var h = rows[0];
+    var btns = h.querySelectorAll('.mat');
+    check('helmet row: 6 material buttons', btns.length === 6);
+    check('none button present', !!h.querySelector('.mat[data-material="none"]'));
+    var leatherBtn = h.querySelector('.mat[data-material="leather"]');
+    check('leather texture from assets', !!leatherBtn.querySelector('img') &&
+      /assets\/textures\/leather_helmet\.png$/.test(leatherBtn.querySelector('img').src));
+
+    // --- durability: hidden for none, shown number after selecting a material ---
+    var dur = h.querySelector('.durability');
+    check('durability hidden for none', dur.hidden || getComputedStyle(dur).display === 'none' || dur.textContent.trim() === '');
+    h.querySelector('.mat[data-material="diamond"]').click();
+    check('diamond helmet durability = 363', dur.textContent.trim() === '363');
+    check('state reflects diamond helmet', app.state.slots.helmet.material === 'diamond');
+    h.querySelector('.mat[data-material="none"]').click();
+    check('back to none hides durability', dur.hidden || getComputedStyle(dur).display === 'none' || dur.textContent.trim() === '');
+
+    // --- protection stepper: - / input / + ; 'none' selectable too (hypothetical mode) ---
+    var dec = h.querySelector('.prot-dec');
+    var inc = h.querySelector('.prot-inc');
+    var input = h.querySelector('.prot-input');
+    check('stepper parts exist', !!dec && !!inc && !!input);
+    inc.click(); inc.click();
+    check('two increments -> 2', app.state.slots.helmet.prot === 2);
+    input.value = '32767';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    check('typed 32767 accepted', app.state.slots.helmet.prot === 32767);
+    input.value = '-3';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    check('negative clamps to 0', app.state.slots.helmet.prot === 0);
+    dec.click();
+    check('dec at 0 stays 0', app.state.slots.helmet.prot === 0);
+
+    // --- resistance stepper 0..5 ---
+    var rrows = mount.querySelector('.resistance');
+    check('resistance control exists', !!rrows);
+    var rinc = rrows.querySelector('.res-inc');
+    for (var i = 0; i < 9; i++) rinc.click();
+    check('resistance clamps at 5', app.state.resistance === 5);
+
+    // --- changing inputs recomputes and paints something in the results area ---
+    mount.querySelector('[data-slot="helmet"] .mat[data-material="diamond"]').click();
+    mount.querySelector('[data-slot="chestplate"] .mat[data-material="diamond"]').click();
+    mount.querySelector('[data-slot="leggings"] .mat[data-material="diamond"]').click();
+    mount.querySelector('[data-slot="boots"] .mat[data-material="diamond"]').click();
+    var results = mount.querySelector('.results');
+    check('results area exists', !!results);
+    check('results repaint shows 80% reduction', /80(\.00)?%/.test(results.textContent));
+
+    // ==== task 003: results panel ====
+    // reset resistance to 0 first (earlier stepper probe left it at 5)
+    {
+      var rsEl = mount.querySelector('.resistance .res-input');
+      rsEl.value = '0'; rsEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    // two big numbers with captions
+    check('big reduction caption present', !!results.querySelector('.big.reduction'));
+    check('big taken caption present', !!results.querySelector('.big.taken'));
+
+    // full diamond from earlier actions: breakdown shows the three segments and total
+    var bd = results.querySelector('.breakdown');
+    check('breakdown exists', !!bd);
+    check('breakdown armor 80%', /armor 80\.00%/.test(bd.textContent));
+    check('breakdown prot 0%', /prot 0\.00%/.test(bd.textContent));
+    check('breakdown taken 20%', /taken 20\.00%/.test(bd.textContent));
+
+    // damage input -> reduced damage + hearts
+    var dmgIn = results.querySelector('.damage-input');
+    dmgIn.value = '10';
+    dmgIn.dispatchEvent(new Event('input', { bubbles: true }));
+    var dmgOut = results.querySelector('.damage-output');
+    check('damage 10 @ full diamond -> 2.00 (1.00 hearts)',
+      /= 2\.00 \(1\.00 hearts\)/.test(dmgOut.textContent));
+
+    // live recompute: raise resistance to 5 -> taken 0%
+    var rInput = mount.querySelector('.resistance .res-input');
+    rInput.value = '5'; rInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('resistance 5 paints taken 0.00%', /0\.00%/.test(results.querySelector('.big.taken').textContent));
+    check('damage output collapses to 0.00',
+      /= 0\.00 \(0\.00 hearts\)/.test(dmgOut.textContent));
+
+    // epf capped badge appears only past 20
+    var capped = results.querySelector('.epf-capped');
+    check('epf capped badge exists', !!capped);
+    check('badge hidden before cap', capped.hidden === true);
+    rInput.value = '0'; rInput.dispatchEvent(new Event('input', { bubbles: true }));
+    var chest = mount.querySelector('[data-slot="chestplate"]');
+    var ci = chest.querySelector('.prot-input');
+    ci.value = '21'; ci.dispatchEvent(new Event('input', { bubbles: true }));
+    check('badge visible past epf 20', capped.hidden === false);
+    var ci2 = mount.querySelector('[data-slot="chestplate"] .prot-input');
+    ci2.value = '0'; ci2.dispatchEvent(new Event('input', { bubbles: true }));
+    check('badge hides again', capped.hidden === true);
+
+    // all-english lowercase copy on visible chrome text
+    ['.big-caption', '.breakdown', '.damage-label', '.slot-label', '.res-label'].forEach(function (sel) {
+      mount.querySelectorAll(sel).forEach(function (n) {
+        check('lowercase: ' + sel + ' -> ' + n.textContent, n.textContent === n.textContent.toLowerCase());
+      });
+    });
+  } catch (e) {
+    log('FAIL  exception: ' + e.message);
+    failures++;
+  }
+  log(failures === 0 ? 'all green' : failures + ' failing');
+})();
+</script>
+</body>
+</html>

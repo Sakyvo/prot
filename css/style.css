@@ -1,0 +1,247 @@
+/* prot — bauhaus restraint: paper ground, black rules, no color accents. */
+
+@font-face {
+  font-family: 'Minecraft AE';
+  src: url('../assets/fonts/minecraft-ae.woff2') format('woff2'),
+       url('../assets/fonts/minecraft-ae.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root {
+  --paper: #f2efe9;
+  --ink: #16130f;
+  --ink-soft: #5a554c;
+  --line: #16130f;
+  --panel: #faf8f4;
+}
+
+* { box-sizing: border-box; }
+
+img { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Minecraft AE', 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+button, input { font: inherit; color: inherit; }
+
+/* ---------- header ---------- */
+
+.site-head {
+  padding: 32px 40px 24px;
+  border-bottom: 3px solid var(--line);
+}
+
+.site-head h1 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+
+.site-head p {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+}
+
+/* ---------- layout ---------- */
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 0;
+  align-items: start;
+}
+
+.controls { padding: 32px 40px; }
+
+/* ---------- equip rows ---------- */
+
+.equip-row {
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.equip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.slot-label {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.durability {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.mats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mat {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border: 2px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+}
+
+.mat img { width: 100%; height: 100%; display: block; }
+
+.mat:hover { background: #e6e1d6; }
+
+.mat.is-active {
+  background: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--paper);
+}
+
+/* ---------- steppers ---------- */
+
+.prot, .resistance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prot { margin-top: 16px; }
+.resistance {
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 16px 20px;
+}
+
+.prot-label, .res-label {
+  margin-right: 8px;
+  letter-spacing: 0.08em;
+}
+
+.prot-dec, .prot-inc, .res-dec, .res-inc {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.prot-dec:hover, .prot-inc:hover, .res-dec:hover, .res-inc:hover { background: #e6e1d6; }
+
+.prot-input, .res-input {
+  width: 88px;
+  height: 40px;
+  padding: 0 8px;
+  border: 2px solid var(--line);
+  background: transparent;
+  text-align: center;
+}
+
+.prot-input:focus, .res-input:focus, .damage-input:focus { outline: 2px dashed var(--line); outline-offset: 2px; }
+
+/* spinners off — steppers are the control */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* ---------- results ---------- */
+
+.results {
+  position: sticky;
+  top: 0;
+  border-left: 3px solid var(--line);
+  padding: 32px 28px;
+  min-height: 100vh;
+}
+
+.big-box { margin-bottom: 8px; }
+
+.big {
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+.big-caption {
+  color: var(--ink-soft);
+  letter-spacing: 0.14em;
+  margin-bottom: 18px;
+}
+
+.breakdown {
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  padding: 12px 0;
+  margin: 24px 0 0;
+  font-size: 14px;
+}
+
+.epf-capped {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border: 2px solid var(--line);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+}
+
+.epf-capped[hidden] { display: none; }
+
+.damage { margin-top: 28px; }
+
+.damage-label { display: block; margin-bottom: 8px; letter-spacing: 0.08em; }
+
+.damage-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--line);
+  background: transparent;
+}
+
+.damage-output { margin: 10px 0 0; font-size: 18px; }
+
+/* ---------- mobile: single column, results pinned to bottom ---------- */
+
+@media (max-width: 760px) {
+  .site-head { padding: 20px 20px 14px; }
+  .site-head h1 { font-size: 28px; }
+
+  main { grid-template-columns: 1fr; }
+
+  .controls { padding: 20px; }
+
+  .results {
+    position: sticky;
+    bottom: 0;
+    top: auto;
+    order: 2;
+    border-left: none;
+    border-top: 3px solid var(--line);
+    background: var(--paper);
+    min-height: 0;
+    padding: 16px 20px;
+    z-index: 10;
+  }
+
+  .big { font-size: 30px; }
+  .big-caption { margin-bottom: 8px; }
+  .breakdown { margin: 12px 0 0; }
+  .damage { margin-top: 16px; }
+}
