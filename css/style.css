@@ -13,6 +13,8 @@
   --ink-soft: #4a5560;
   --wash: rgba(255, 255, 255, 0.45);
   --wash-strong: rgba(255, 255, 255, 0.78);
+  --control-col: 240px;
+  --stat-col: 186px;
 }
 
 * { box-sizing: border-box; }
@@ -42,7 +44,9 @@ main {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 48px;
   align-items: start;
-  padding: 56px 64px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 0;
 }
 
 /* ---------- slot rows ---------- */
@@ -52,7 +56,7 @@ main {
 .slot-row {
   position: relative;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 64px;
+  grid-template-columns: 56px var(--control-col) 64px;
   align-items: center;
   gap: 28px;
 }
@@ -78,23 +82,24 @@ main {
 
 .material-popover {
   position: absolute;
-  top: 56px;
-  left: 0;
+  top: 50%;
+  left: 56px;
+  transform: translateY(-50%);
+  max-width: calc(100% - 56px);
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 10px;
   background: var(--wash-strong);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-4px);
-  transition: opacity 130ms ease, transform 130ms ease, visibility 130ms;
+  transition: opacity 130ms ease, visibility 130ms;
   z-index: 20;
 }
 
 .material-popover.is-open {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
 }
 
 .mat-option { width: 44px; height: 44px; display: block; transition: background 120ms ease; }
@@ -103,12 +108,19 @@ main {
 
 /* ---------- prot control ---------- */
 
-.prot { display: flex; align-items: center; gap: 10px; }
+.prot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 
 .prot-label { color: var(--ink-soft); }
 
+.prot-stepper { display: flex; align-items: center; gap: 10px; }
+
 .prot-input {
-  width: 58px;
+  width: 78px;
   padding: 4px 6px;
   font: inherit;
   color: inherit;
@@ -136,17 +148,36 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---------- resistance levels ---------- */
 
-.resistance-row { display: flex; align-items: center; gap: 10px; }
+.resistance-row {
+  display: grid;
+  grid-template-columns: 56px var(--control-col) 64px;
+  align-items: center;
+  gap: 28px;
+}
 
-.res-icon { width: 40px; height: 40px; display: block; }
+.res-icon {
+  width: 56px;
+  height: 56px;
+  display: block;
+  object-fit: contain;
+}
+
+.res-levels {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: center;
+  justify-items: center;
+}
 
 .res-level {
-  min-width: 30px;
   padding: 4px 6px;
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
   transition: background 120ms ease, color 120ms ease;
 }
+
+.res-level:first-child { justify-self: start; }
+.res-level:last-child { justify-self: end; }
 
 .res-level:hover { background: var(--wash); }
 
@@ -154,15 +185,37 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---------- results ---------- */
 
-.results { display: grid; gap: 28px; align-content: start; }
+.results {
+  display: grid;
+  gap: 28px;
+  align-content: start;
+  border-left: 2px solid var(--ink);
+  padding-left: 28px;
+}
 
-.breakdown { margin: 0; display: grid; gap: 4px; }
+.breakdown {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 16px;
+  row-gap: 4px;
+}
 
-.breakdown .line { margin: 0; color: var(--ink-soft); }
+.breakdown .line { display: contents; }
+
+.line-label { color: var(--ink-soft); }
+
+.line-value { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 .stat { display: flex; align-items: baseline; gap: 14px; }
 
-.stat-value { font-size: 40px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat-value {
+  font-size: 40px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: var(--stat-col);
+}
 
 .stat-label { color: var(--ink-soft); cursor: default; }
 
@@ -193,15 +246,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .damage-input:focus { outline: 1px dashed var(--ink-soft); outline-offset: 2px; }
 
-.damage-out { display: flex; align-items: baseline; gap: 18px; }
+.damage-out { display: flex; align-items: center; gap: 18px; }
 
 .damage-value { font-size: 26px; font-variant-numeric: tabular-nums; }
 
-.heart-out { display: inline-flex; align-items: center; gap: 8px; }
+.heart-value { font-size: 26px; font-variant-numeric: tabular-nums; }
 
 .heart-icon { width: 20px; height: 20px; display: block; }
-
-.heart-value { font-size: 26px; font-variant-numeric: tabular-nums; }
 
 /* ---------- mobile bar & detail modal ---------- */
 
@@ -252,23 +303,32 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ---------- mobile ---------- */
 
 @media (max-width: 760px) {
+  :root { --control-col: 100%; }
+
   main {
     grid-template-columns: 1fr;
     gap: 32px;
+    max-width: none;
     padding: 28px 22px 140px;
   }
 
   .controls { gap: 30px; }
 
-  .slot-row { grid-template-columns: 48px minmax(0, 1fr) 48px; gap: 16px; }
+  .slot-row { grid-template-columns: 48px minmax(0, 1fr) 44px; gap: 12px; }
 
   .slot-trigger, .slot-trigger img { width: 48px; height: 48px; }
 
-  .material-popover { top: 48px; }
+  .material-popover { left: 48px; max-width: calc(100% - 48px); }
 
-  .stat-value { font-size: 30px; }
+  .resistance-row { grid-template-columns: 48px minmax(0, 1fr) 44px; gap: 12px; }
 
-  .results { gap: 20px; }
+  .res-icon { width: 48px; height: 48px; }
+
+  .prot-input { width: 70px; }
+
+  .stat-value { font-size: 30px; min-width: 0; }
+
+  .results { gap: 20px; border-left: 0; padding-left: 0; }
 
   .breakdown { display: none; }
 

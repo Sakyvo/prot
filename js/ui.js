@@ -101,9 +101,11 @@
       dec.addEventListener('click', function () { setProt(state.slots[slot].prot - 1); });
       inc.addEventListener('click', function () { setProt(state.slots[slot].prot + 1); });
       input.addEventListener('input', function () { setProt(input.value); });
-      protWrap.appendChild(dec);
-      protWrap.appendChild(input);
-      protWrap.appendChild(inc);
+      var stepper = el('div', 'prot-stepper');
+      stepper.appendChild(dec);
+      stepper.appendChild(input);
+      stepper.appendChild(inc);
+      protWrap.appendChild(stepper);
       row.appendChild(protWrap);
 
       var dur = el('span', 'durability', '0');
@@ -118,6 +120,7 @@
     shield.className = 'res-icon';
     resRow.appendChild(shield);
     var levelEls = [];
+    var levelGrid = el('div', 'res-levels');
     for (var lvl = 0; lvl <= 5; lvl++) {
       (function (n) {
         var b = el('button', 'res-level' + (n === 0 ? ' is-active' : ''), String(n));
@@ -125,9 +128,10 @@
         b.dataset.level = String(n);
         b.addEventListener('click', function () { setRes(n); });
         levelEls.push(b);
-        resRow.appendChild(b);
+        levelGrid.appendChild(b);
       })(lvl);
     }
+    resRow.appendChild(levelGrid);
     function setRes(n) {
       state.resistance = n;
       levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === n); });
@@ -139,12 +143,20 @@
     var results = el('aside', 'results');
 
     var breakdown = el('div', 'breakdown');
-    var lineArmor = el('p', 'line', 'armor 0.00%');
-    var lineProt = el('p', 'line', 'prot 0.00%');
-    var lineRes = el('p', 'line', 'res 0.00%');
-    breakdown.appendChild(lineArmor);
-    breakdown.appendChild(lineProt);
-    breakdown.appendChild(lineRes);
+    function breakdownLine(label) {
+      var p = el('p', 'line');
+      var lab = el('span', 'line-label', label);
+      var val = el('span', 'line-value', '0.00%');
+      p.appendChild(lab);
+      p.appendChild(val);
+      return { root: p, label: lab, value: val };
+    }
+    var bArmor = breakdownLine('armor');
+    var bProt = breakdownLine('prot');
+    var bRes = breakdownLine('res');
+    breakdown.appendChild(bArmor.root);
+    breakdown.appendChild(bProt.root);
+    breakdown.appendChild(bRes.root);
 
     var statRed = el('div', 'stat reduction');
     var redValue = el('span', 'stat-value', '100.00%');
@@ -171,14 +183,12 @@
     dmgInput.placeholder = '0.00';
     var dmgOut = el('div', 'damage-out');
     var dmgVal = el('span', 'damage-value', '0.00');
-    var heartWrap = el('span', 'heart-out');
+    var heartVal = el('span', 'heart-value', '0.00');
     var heartIcon = img(TEX + 'heart.png', 'hearts');
     heartIcon.className = 'heart-icon';
-    var heartVal = el('span', 'heart-value', '0.00');
     dmgOut.appendChild(dmgVal);
-    heartWrap.appendChild(heartIcon);
-    heartWrap.appendChild(heartVal);
-    dmgOut.appendChild(heartWrap);
+    dmgOut.appendChild(heartVal);
+    dmgOut.appendChild(heartIcon);
     damageRow.appendChild(dmgInput);
     damageRow.appendChild(dmgOut);
 
@@ -247,12 +257,12 @@
       mRedValue.textContent = red;
       mTakenValue.textContent = taken;
 
-      lineArmor.textContent = 'armor ' + pct(r.armorPct);
-      lineProt.textContent = 'prot ' + pct(r.epfPct);
-      lineRes.textContent = 'res ' + pct(r.resPct);
-      mLines[0].textContent = lineArmor.textContent;
-      mLines[1].textContent = lineProt.textContent;
-      mLines[2].textContent = lineRes.textContent;
+      bArmor.value.textContent = pct(r.armorPct);
+      bProt.value.textContent = pct(r.epfPct);
+      bRes.value.textContent = pct(r.resPct);
+      mLines[0].textContent = 'armor ' + pct(r.armorPct);
+      mLines[1].textContent = 'prot ' + pct(r.epfPct);
+      mLines[2].textContent = 'res ' + pct(r.resPct);
 
       capped.hidden = !r.epfCapped;
 

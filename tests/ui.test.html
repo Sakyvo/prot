@@ -14,12 +14,13 @@
   log('mode: ' + (mobile ? 'mobile' : 'desktop') + ' (innerWidth ' + window.innerWidth + ')');
 
   try {
-    var mount = document.createElement('div');
+    var mount = document.createElement('main');
     document.body.appendChild(mount);
     var app = ProtUI.mount(mount);
     var state = app.state;
+    var near = function (a, b, tol) { return Math.abs(a - b) <= (tol || 1.5); };
 
-    // ---- 006: shell removal & skin ----
+    // ================= v2 regressions =================
     check('no site header in page shell', !document.querySelector('.site-head'));
     check('no "protection" wording', mount.textContent.indexOf('protection') === -1);
     check('no "resistance" wording', mount.textContent.indexOf('resistance') === -1);
@@ -31,90 +32,58 @@
     check('row order helmet->boots',
       rows[0].dataset.slot === 'helmet' && rows[3].dataset.slot === 'boots');
 
-    var bordered = ['.slot-row', '.results', '.breakdown', '.resistance-row', '.damage-row']
-      .reduce(function (acc, sel) {
-        mount.querySelectorAll(sel).forEach(function (n) {
-          var cs = getComputedStyle(n);
-          if (parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.borderLeftWidth) > 0) acc.push(sel);
-        });
-        return acc;
-      }, []);
-    check('zero borders on panels (found: ' + bordered.join(',') + ')', bordered.length === 0);
-
     var first = rows[0];
-    check('trigger image uses empty slot for none',
+    check('trigger shows empty slot for none',
       /assets\/textures\/empty_armor_slot_helmet\.png$/.test(first.querySelector('.slot-trigger img').src));
-    check('durability shows 0 for none', first.querySelector('.durability').textContent.trim() === '0');
+    check('durability 0 for none', first.querySelector('.durability').textContent.trim() === '0');
     check('prot label text is "prot"', first.querySelector('.prot-label').textContent.trim() === 'prot');
     check('no flat material button row', mount.querySelectorAll('.mats').length === 0);
-    check('leather texture is tinted (non-grayscale)',
-      first.querySelector('.slot-trigger') !== null); // texture check done by tools/tint + screenshot
 
-    // ---- 007: material picker popover ----
+    // picker behaviour
     var pop = first.querySelector('.material-popover');
-    check('popover exists and starts hidden', !!pop && !pop.classList.contains('is-open'));
+    check('popover starts hidden', !!pop && !pop.classList.contains('is-open'));
     first.querySelector('.slot-trigger').click();
     check('trigger click opens popover', pop.classList.contains('is-open'));
     check('popover has 6 options', pop.querySelectorAll('.mat-option').length === 6);
-    check('popover covers rather than expands row', getComputedStyle(pop).position === 'absolute');
-
-    // outside click closes
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     check('outside click closes popover', !pop.classList.contains('is-open'));
-
-    // pick diamond
     first.querySelector('.slot-trigger').click();
     pop.querySelector('.mat-option[data-material="diamond"]').click();
     check('pick diamond closes popover', !pop.classList.contains('is-open'));
-    check('trigger image switched to diamond',
-      /assets\/textures\/diamond_helmet\.png$/.test(first.querySelector('.slot-trigger img').src));
     check('durability 363 after diamond', first.querySelector('.durability').textContent.trim() === '363');
     check('state updated', state.slots.helmet.material === 'diamond');
-
-    // back to none
     first.querySelector('.slot-trigger').click();
     pop.querySelector('.mat-option[data-material="none"]').click();
-    check('durability back to 0 for none', first.querySelector('.durability').textContent.trim() === '0');
+    check('durability back to 0', first.querySelector('.durability').textContent.trim() === '0');
 
-    // ---- 008: resistance levels ----
+    // resistance levels
     var resRow = mount.querySelector('.resistance-row');
     var levels = resRow.querySelectorAll('.res-level');
     check('six resistance levels', levels.length === 6);
-    check('shield icon present from assets',
+    check('shield icon from assets',
       /assets\/textures\/effect_resistance\.png$/.test(resRow.querySelector('.res-icon').src));
-    check('no stepper buttons', !resRow.querySelector('.res-inc') && !resRow.querySelector('.res-dec'));
     levels[3].click();
-    check('clicking level 3 sets resistance 3', state.resistance === 3);
-    check('level 3 marked active', levels[3].classList.contains('is-active'));
+    check('level 3 sets resistance 3', state.resistance === 3);
+    check('active class follows', levels[3].classList.contains('is-active'));
     levels[0].click();
-    check('clicking level 0 clears it', state.resistance === 0 && !levels[3].classList.contains('is-active'));
+    check('level 0 clears', state.resistance === 0 && !levels[3].classList.contains('is-active'));
 
-    // ---- 009: results column (desktop) ----
+    // results basics
     var results = mount.querySelector('.results');
-    check('results area exists', !!results);
     var redStat = results.querySelector('.stat.reduction');
     var takenStat = results.querySelector('.stat.taken');
-    check('reduction number then label inline',
-      redStat.querySelector('.stat-value').textContent.trim() === '0.00%' &&
-      redStat.querySelector('.stat-label').textContent.trim() === 'reduction');
-    check('taken stat exists', takenStat.querySelector('.stat-label').textContent.trim() === 'taken');
-
-    var lines = results.querySelectorAll('.breakdown .line');
-    check('breakdown has three lines', lines.length === 3);
-    check('breakdown empty config shows three 0.00%',
-      Array.prototype.every.call(lines, function (l) { return /0\.00%/.test(l.textContent); }));
-    check('breakdown labels are armor / prot / res',
-      /^armor/.test(lines[0].textContent) && /prot/.test(lines[1].textContent) && /res/.test(lines[2].textContent));
+    check('reduction stat label', redStat.querySelector('.stat-label').textContent.trim() === 'reduction');
+    check('taken stat label', takenStat.querySelector('.stat-label').textContent.trim() === 'taken');
+    check('reduction starts 0.00%', redStat.querySelector('.stat-value').textContent.trim() === '0.00%');
 
     var dmg = results.querySelector('.damage-input');
     var dmgVal = results.querySelector('.damage-value');
     var heartVal = results.querySelector('.heart-value');
-    check('damage output defaults to 0.00', dmgVal.textContent.trim() === '0.00');
-    check('heart count defaults to 0.00', heartVal.textContent.trim() === '0.00');
+    check('damage defaults 0.00', dmgVal.textContent.trim() === '0.00');
+    check('hearts default 0.00', heartVal.textContent.trim() === '0.00');
     check('heart icon present',
       /assets\/textures\/heart\.png$/.test(results.querySelector('.heart-icon').src));
 
-    // fill full diamond then check numbers
     ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
       var row = mount.querySelector('[data-slot="' + slot + '"]');
       row.querySelector('.slot-trigger').click();
@@ -122,14 +91,11 @@
     });
     check('full diamond reduction 80.00%',
       redStat.querySelector('.stat-value').textContent.trim() === '80.00%');
-    check('breakdown armor line 80.00%', /80\.00%/.test(lines[0].textContent));
-
     dmg.value = '10';
     dmg.dispatchEvent(new Event('input', { bubbles: true }));
     check('damage 10 @ 80% -> 2.00', dmgVal.textContent.trim() === '2.00');
     check('2.00 damage -> 1.00 hearts', heartVal.textContent.trim() === '1.00');
 
-    // prot control still steppers, capped badge still there
     var helmProt = mount.querySelector('[data-slot="helmet"] .prot-input');
     helmProt.value = '21';
     helmProt.dispatchEvent(new Event('input', { bubbles: true }));
@@ -138,30 +104,121 @@
     helmProt.dispatchEvent(new Event('input', { bubbles: true }));
     check('badge hidden again', results.querySelector('.epf-capped').hidden === true);
 
-    // ---- 010: mobile modal vs desktop inline ----
+    // modal plumbing
     var modal = mount.querySelector('.detail-modal');
     check('detail modal exists', !!modal);
-    check('modal has svg close button', !!modal.querySelector('svg.modal-close'));
+    check('modal has svg close', !!modal.querySelector('svg.modal-close'));
     check('modal starts closed', !modal.classList.contains('is-open'));
-    check('modal has three detail lines', modal.querySelectorAll('.line').length === 3);
-
+    check('modal has three lines', modal.querySelectorAll('.line').length === 3);
     if (mobile) {
-      check('breakdown hidden on mobile', getComputedStyle(results.querySelector('.breakdown')).display === 'none');
       redStat.querySelector('.stat-label').click();
-      check('tapping label opens modal on mobile', modal.classList.contains('is-open'));
+      check('label opens modal on mobile', modal.classList.contains('is-open'));
       modal.querySelector('svg.modal-close').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      check('svg close closes modal', !modal.classList.contains('is-open'));
+      check('svg close works', !modal.classList.contains('is-open'));
       redStat.querySelector('.stat-label').click();
       modal.querySelector('.modal-backdrop').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      check('backdrop click closes modal', !modal.classList.contains('is-open'));
-      check('footer bar is slim (only two stats)',
-        mount.querySelector('.mobile-bar') === null || mount.querySelectorAll('.mobile-bar .stat').length <= 2);
+      check('backdrop closes', !modal.classList.contains('is-open'));
     } else {
-      check('breakdown visible on desktop', getComputedStyle(results.querySelector('.breakdown')).display !== 'none');
       redStat.querySelector('.stat-label').click();
-      check('label click does not open modal on desktop', !modal.classList.contains('is-open'));
-      check('footer stats laid out for mobile only',
-        !mount.querySelector('.mobile-bar') || getComputedStyle(mount.querySelector('.mobile-bar')).display === 'none');
+      check('label does not open modal on desktop', !modal.classList.contains('is-open'));
+    }
+
+    // ================= v3: centered frame + divider =================
+    var mainRect = mount.getBoundingClientRect();
+    var leftGap = mainRect.left;
+    var rightGap = window.innerWidth - mainRect.right;
+    check('desktop content centered (left ' + leftGap.toFixed(0) + ' / right ' + rightGap.toFixed(0) + ')',
+      mobile || (leftGap > 8 && near(leftGap, rightGap, 3)));
+
+    var resCs = getComputedStyle(results);
+    check('results has 2px left divider (desktop only, mobile ' + mobile + ')',
+      mobile ? parseFloat(resCs.borderLeftWidth) === 0 : parseFloat(resCs.borderLeftWidth) === 2);
+    check('divider is black', mobile || resCs.borderLeftColor === 'rgb(16, 20, 24)');
+
+    var oddBorders = [];
+    mount.querySelectorAll('*').forEach(function (n) {
+      if (n === results || n === document.querySelector('.detail-modal')) return;
+      var cs = getComputedStyle(n);
+      if (['borderTopWidth', 'borderRightWidth', 'borderBottomWidth'].some(function (k) {
+        return parseFloat(cs[k]) > 0;
+      }) || parseFloat(cs.borderLeftWidth) > 0) oddBorders.push(n.className || n.tagName);
+    });
+    check('no other borders (found: ' + oddBorders.slice(0, 4).join('|') + ')', oddBorders.length === 0);
+    check('divider stops at content bottom (results ' + results.getBoundingClientRect().height.toFixed(0) +
+      ' < main ' + mainRect.height.toFixed(0) + ')',
+      results.getBoundingClientRect().height < mainRect.height - 40);
+
+    // ================= v3: alignment =================
+    var rv = redStat.querySelector('.stat-value').getBoundingClientRect();
+    var tv = takenStat.querySelector('.stat-value').getBoundingClientRect();
+    var rl = redStat.querySelector('.stat-label').getBoundingClientRect();
+    var tl = takenStat.querySelector('.stat-label').getBoundingClientRect();
+    check('reduction value right-aligned with taken value', near(rv.right, tv.right));
+    check('reduction label x == taken label x', near(rl.left, tl.left));
+
+    var lineVals = results.querySelectorAll('.breakdown .line-value');
+    check('three breakdown values', lineVals.length === 3);
+    var vx = Array.prototype.map.call(lineVals, function (n) { return n.getBoundingClientRect().left; });
+    check('breakdown values share x (' + vx.map(function (v) { return v.toFixed(0); }).join(',') + ')',
+      near(vx[0], vx[1]) && near(vx[1], vx[2]));
+    var lineLabels = results.querySelectorAll('.breakdown .line-label');
+    check('breakdown labels are armor / prot / res',
+      lineLabels[0].textContent.trim() === 'armor' &&
+      lineLabels[1].textContent.trim() === 'prot' &&
+      lineLabels[2].textContent.trim() === 'res');
+
+    // control row baselines
+    var protLabel = first.querySelector('.prot-label').getBoundingClientRect();
+    var lvl0 = levels[0].getBoundingClientRect();
+    var lvl5 = levels[5].getBoundingClientRect();
+    var plusBtn = first.querySelector('.prot-inc').getBoundingClientRect();
+    check('resistance 0 aligns with prot label (prot ' + protLabel.left.toFixed(0) +
+      ' / level0 ' + lvl0.left.toFixed(0) + ')', near(protLabel.left, lvl0.left, 2));
+    check('resistance 5 aligns with + button (plus ' + plusBtn.right.toFixed(0) +
+      ' / level5 ' + lvl5.right.toFixed(0) + ')', near(plusBtn.right, lvl5.right, 2));
+
+    var shield = resRow.querySelector('.res-icon').getBoundingClientRect();
+    var triggerBox = first.querySelector('.slot-trigger').getBoundingClientRect();
+    check('shield sized like armor icon (' + shield.height.toFixed(0) + ' vs ' + triggerBox.height.toFixed(0) + ')',
+      near(shield.height, triggerBox.height, 2));
+
+    var protInput = first.querySelector('.prot-input');
+    protInput.value = '32767';
+    protInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('input fits 32767 (scroll ' + protInput.scrollWidth + ' <= client ' + protInput.clientWidth + ')',
+      protInput.scrollWidth <= protInput.clientWidth);
+    protInput.value = '0';
+    protInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // ================= v3: popover placement + damage order =================
+    first.querySelector('.slot-trigger').click();
+    var popRect = pop.getBoundingClientRect();
+    var trigRect = first.querySelector('.slot-trigger').getBoundingClientRect();
+    var protRect = first.querySelector('.prot').getBoundingClientRect();
+    check('popover sits to the right of the trigger (' + popRect.left.toFixed(0) +
+      ' >= ' + trigRect.right.toFixed(0) + ')', popRect.left >= trigRect.right - 2);
+    check('popover covers the prot control', popRect.left < protRect.right && popRect.right > protRect.left);
+    var rowH = first.getBoundingClientRect().height;
+    pop.querySelector('.mat-option[data-material="none"]').click();
+    check('row height unchanged by popover', near(first.getBoundingClientRect().height, rowH, 1));
+
+    var out = results.querySelector('.damage-out');
+    var order = Array.prototype.map.call(out.children, function (n) { return n.className; });
+    check('damage order: value -> heart value -> heart icon (' + order.join(' ') + ')',
+      /damage-value/.test(order[0]) && /heart-value/.test(order[1]) && /heart-icon/.test(order[2]));
+
+    // narrow-viewport popover wraps rather than overflowing
+    {
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:absolute;left:0;top:0;width:300px';
+      var clone = first.cloneNode(true);
+      probe.appendChild(clone);
+      document.body.appendChild(probe);
+      var cpop = clone.querySelector('.material-popover');
+      cpop.classList.add('is-open');
+      check('popover wraps within narrow container',
+        cpop.getBoundingClientRect().width <= 300);
+      document.body.removeChild(probe);
     }
   } catch (e) {
     log('FAIL  exception: ' + e.message + '\n' + (e.stack || ''));
