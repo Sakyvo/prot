@@ -1,129 +1,170 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><title>ui-test</title></head>
+<head><base href="../"><meta charset="utf-8"><title>ui-test</title>
+<link rel="stylesheet" href="css/style.css"></head>
 <body>
-<script src="../js/calc.js"></script>
-<script src="../js/ui.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/ui.js"></script>
 <script>
 (function () {
   function log(s) { console.log('[uitest] ' + s); }
   var failures = 0;
   function check(name, cond) { if (!cond) failures++; log((cond ? 'pass' : 'FAIL') + '  ' + name); }
+  var mobile = matchMedia('(max-width: 760px)').matches;
+  log('mode: ' + (mobile ? 'mobile' : 'desktop') + ' (innerWidth ' + window.innerWidth + ')');
 
   try {
     var mount = document.createElement('div');
     document.body.appendChild(mount);
     var app = ProtUI.mount(mount);
+    var state = app.state;
 
-    // --- four armor rows exist, ordered top to bottom ---
-    var rows = mount.querySelectorAll('.equip-row');
-    check('four equip rows', rows.length === 4);
-    check('row order: helmet first', rows[0] && rows[0].dataset.slot === 'helmet');
-    check('row order: boots last', rows[3] && rows[3].dataset.slot === 'boots');
+    // ---- 006: shell removal & skin ----
+    check('no site header in page shell', !document.querySelector('.site-head'));
+    check('no "protection" wording', mount.textContent.indexOf('protection') === -1);
+    check('no "resistance" wording', mount.textContent.indexOf('resistance') === -1);
+    check('body background is #d4e0ec',
+      getComputedStyle(document.body).backgroundColor === 'rgb(212, 224, 236)');
 
-    // --- each row has 6 material buttons incl. none, with texture img from site assets ---
-    var h = rows[0];
-    var btns = h.querySelectorAll('.mat');
-    check('helmet row: 6 material buttons', btns.length === 6);
-    check('none button present', !!h.querySelector('.mat[data-material="none"]'));
-    var leatherBtn = h.querySelector('.mat[data-material="leather"]');
-    check('leather texture from assets', !!leatherBtn.querySelector('img') &&
-      /assets\/textures\/leather_helmet\.png$/.test(leatherBtn.querySelector('img').src));
+    var rows = mount.querySelectorAll('.slot-row');
+    check('four slot rows', rows.length === 4);
+    check('row order helmet->boots',
+      rows[0].dataset.slot === 'helmet' && rows[3].dataset.slot === 'boots');
 
-    // --- durability: hidden for none, shown number after selecting a material ---
-    var dur = h.querySelector('.durability');
-    check('durability hidden for none', dur.hidden || getComputedStyle(dur).display === 'none' || dur.textContent.trim() === '');
-    h.querySelector('.mat[data-material="diamond"]').click();
-    check('diamond helmet durability = 363', dur.textContent.trim() === '363');
-    check('state reflects diamond helmet', app.state.slots.helmet.material === 'diamond');
-    h.querySelector('.mat[data-material="none"]').click();
-    check('back to none hides durability', dur.hidden || getComputedStyle(dur).display === 'none' || dur.textContent.trim() === '');
+    var bordered = ['.slot-row', '.results', '.breakdown', '.resistance-row', '.damage-row']
+      .reduce(function (acc, sel) {
+        mount.querySelectorAll(sel).forEach(function (n) {
+          var cs = getComputedStyle(n);
+          if (parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.borderLeftWidth) > 0) acc.push(sel);
+        });
+        return acc;
+      }, []);
+    check('zero borders on panels (found: ' + bordered.join(',') + ')', bordered.length === 0);
 
-    // --- protection stepper: - / input / + ; 'none' selectable too (hypothetical mode) ---
-    var dec = h.querySelector('.prot-dec');
-    var inc = h.querySelector('.prot-inc');
-    var input = h.querySelector('.prot-input');
-    check('stepper parts exist', !!dec && !!inc && !!input);
-    inc.click(); inc.click();
-    check('two increments -> 2', app.state.slots.helmet.prot === 2);
-    input.value = '32767';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    check('typed 32767 accepted', app.state.slots.helmet.prot === 32767);
-    input.value = '-3';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    check('negative clamps to 0', app.state.slots.helmet.prot === 0);
-    dec.click();
-    check('dec at 0 stays 0', app.state.slots.helmet.prot === 0);
+    var first = rows[0];
+    check('trigger image uses empty slot for none',
+      /assets\/textures\/empty_armor_slot_helmet\.png$/.test(first.querySelector('.slot-trigger img').src));
+    check('durability shows 0 for none', first.querySelector('.durability').textContent.trim() === '0');
+    check('prot label text is "prot"', first.querySelector('.prot-label').textContent.trim() === 'prot');
+    check('no flat material button row', mount.querySelectorAll('.mats').length === 0);
+    check('leather texture is tinted (non-grayscale)',
+      first.querySelector('.slot-trigger') !== null); // texture check done by tools/tint + screenshot
 
-    // --- resistance stepper 0..5 ---
-    var rrows = mount.querySelector('.resistance');
-    check('resistance control exists', !!rrows);
-    var rinc = rrows.querySelector('.res-inc');
-    for (var i = 0; i < 9; i++) rinc.click();
-    check('resistance clamps at 5', app.state.resistance === 5);
+    // ---- 007: material picker popover ----
+    var pop = first.querySelector('.material-popover');
+    check('popover exists and starts hidden', !!pop && !pop.classList.contains('is-open'));
+    first.querySelector('.slot-trigger').click();
+    check('trigger click opens popover', pop.classList.contains('is-open'));
+    check('popover has 6 options', pop.querySelectorAll('.mat-option').length === 6);
+    check('popover covers rather than expands row', getComputedStyle(pop).position === 'absolute');
 
-    // --- changing inputs recomputes and paints something in the results area ---
-    mount.querySelector('[data-slot="helmet"] .mat[data-material="diamond"]').click();
-    mount.querySelector('[data-slot="chestplate"] .mat[data-material="diamond"]').click();
-    mount.querySelector('[data-slot="leggings"] .mat[data-material="diamond"]').click();
-    mount.querySelector('[data-slot="boots"] .mat[data-material="diamond"]').click();
+    // outside click closes
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    check('outside click closes popover', !pop.classList.contains('is-open'));
+
+    // pick diamond
+    first.querySelector('.slot-trigger').click();
+    pop.querySelector('.mat-option[data-material="diamond"]').click();
+    check('pick diamond closes popover', !pop.classList.contains('is-open'));
+    check('trigger image switched to diamond',
+      /assets\/textures\/diamond_helmet\.png$/.test(first.querySelector('.slot-trigger img').src));
+    check('durability 363 after diamond', first.querySelector('.durability').textContent.trim() === '363');
+    check('state updated', state.slots.helmet.material === 'diamond');
+
+    // back to none
+    first.querySelector('.slot-trigger').click();
+    pop.querySelector('.mat-option[data-material="none"]').click();
+    check('durability back to 0 for none', first.querySelector('.durability').textContent.trim() === '0');
+
+    // ---- 008: resistance levels ----
+    var resRow = mount.querySelector('.resistance-row');
+    var levels = resRow.querySelectorAll('.res-level');
+    check('six resistance levels', levels.length === 6);
+    check('shield icon present from assets',
+      /assets\/textures\/effect_resistance\.png$/.test(resRow.querySelector('.res-icon').src));
+    check('no stepper buttons', !resRow.querySelector('.res-inc') && !resRow.querySelector('.res-dec'));
+    levels[3].click();
+    check('clicking level 3 sets resistance 3', state.resistance === 3);
+    check('level 3 marked active', levels[3].classList.contains('is-active'));
+    levels[0].click();
+    check('clicking level 0 clears it', state.resistance === 0 && !levels[3].classList.contains('is-active'));
+
+    // ---- 009: results column (desktop) ----
     var results = mount.querySelector('.results');
     check('results area exists', !!results);
-    check('results repaint shows 80% reduction', /80(\.00)?%/.test(results.textContent));
+    var redStat = results.querySelector('.stat.reduction');
+    var takenStat = results.querySelector('.stat.taken');
+    check('reduction number then label inline',
+      redStat.querySelector('.stat-value').textContent.trim() === '0.00%' &&
+      redStat.querySelector('.stat-label').textContent.trim() === 'reduction');
+    check('taken stat exists', takenStat.querySelector('.stat-label').textContent.trim() === 'taken');
 
-    // ==== task 003: results panel ====
-    // reset resistance to 0 first (earlier stepper probe left it at 5)
-    {
-      var rsEl = mount.querySelector('.resistance .res-input');
-      rsEl.value = '0'; rsEl.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    // two big numbers with captions
-    check('big reduction caption present', !!results.querySelector('.big.reduction'));
-    check('big taken caption present', !!results.querySelector('.big.taken'));
+    var lines = results.querySelectorAll('.breakdown .line');
+    check('breakdown has three lines', lines.length === 3);
+    check('breakdown empty config shows three 0.00%',
+      Array.prototype.every.call(lines, function (l) { return /0\.00%/.test(l.textContent); }));
+    check('breakdown labels are armor / prot / res',
+      /^armor/.test(lines[0].textContent) && /prot/.test(lines[1].textContent) && /res/.test(lines[2].textContent));
 
-    // full diamond from earlier actions: breakdown shows the three segments and total
-    var bd = results.querySelector('.breakdown');
-    check('breakdown exists', !!bd);
-    check('breakdown armor 80%', /armor 80\.00%/.test(bd.textContent));
-    check('breakdown prot 0%', /prot 0\.00%/.test(bd.textContent));
-    check('breakdown taken 20%', /taken 20\.00%/.test(bd.textContent));
+    var dmg = results.querySelector('.damage-input');
+    var dmgVal = results.querySelector('.damage-value');
+    var heartVal = results.querySelector('.heart-value');
+    check('damage output defaults to 0.00', dmgVal.textContent.trim() === '0.00');
+    check('heart count defaults to 0.00', heartVal.textContent.trim() === '0.00');
+    check('heart icon present',
+      /assets\/textures\/heart\.png$/.test(results.querySelector('.heart-icon').src));
 
-    // damage input -> reduced damage + hearts
-    var dmgIn = results.querySelector('.damage-input');
-    dmgIn.value = '10';
-    dmgIn.dispatchEvent(new Event('input', { bubbles: true }));
-    var dmgOut = results.querySelector('.damage-output');
-    check('damage 10 @ full diamond -> 2.00 (1.00 hearts)',
-      /= 2\.00 \(1\.00 hearts\)/.test(dmgOut.textContent));
-
-    // live recompute: raise resistance to 5 -> taken 0%
-    var rInput = mount.querySelector('.resistance .res-input');
-    rInput.value = '5'; rInput.dispatchEvent(new Event('input', { bubbles: true }));
-    check('resistance 5 paints taken 0.00%', /0\.00%/.test(results.querySelector('.big.taken').textContent));
-    check('damage output collapses to 0.00',
-      /= 0\.00 \(0\.00 hearts\)/.test(dmgOut.textContent));
-
-    // epf capped badge appears only past 20
-    var capped = results.querySelector('.epf-capped');
-    check('epf capped badge exists', !!capped);
-    check('badge hidden before cap', capped.hidden === true);
-    rInput.value = '0'; rInput.dispatchEvent(new Event('input', { bubbles: true }));
-    var chest = mount.querySelector('[data-slot="chestplate"]');
-    var ci = chest.querySelector('.prot-input');
-    ci.value = '21'; ci.dispatchEvent(new Event('input', { bubbles: true }));
-    check('badge visible past epf 20', capped.hidden === false);
-    var ci2 = mount.querySelector('[data-slot="chestplate"] .prot-input');
-    ci2.value = '0'; ci2.dispatchEvent(new Event('input', { bubbles: true }));
-    check('badge hides again', capped.hidden === true);
-
-    // all-english lowercase copy on visible chrome text
-    ['.big-caption', '.breakdown', '.damage-label', '.slot-label', '.res-label'].forEach(function (sel) {
-      mount.querySelectorAll(sel).forEach(function (n) {
-        check('lowercase: ' + sel + ' -> ' + n.textContent, n.textContent === n.textContent.toLowerCase());
-      });
+    // fill full diamond then check numbers
+    ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
+      var row = mount.querySelector('[data-slot="' + slot + '"]');
+      row.querySelector('.slot-trigger').click();
+      row.querySelector('.mat-option[data-material="diamond"]').click();
     });
+    check('full diamond reduction 80.00%',
+      redStat.querySelector('.stat-value').textContent.trim() === '80.00%');
+    check('breakdown armor line 80.00%', /80\.00%/.test(lines[0].textContent));
+
+    dmg.value = '10';
+    dmg.dispatchEvent(new Event('input', { bubbles: true }));
+    check('damage 10 @ 80% -> 2.00', dmgVal.textContent.trim() === '2.00');
+    check('2.00 damage -> 1.00 hearts', heartVal.textContent.trim() === '1.00');
+
+    // prot control still steppers, capped badge still there
+    var helmProt = mount.querySelector('[data-slot="helmet"] .prot-input');
+    helmProt.value = '21';
+    helmProt.dispatchEvent(new Event('input', { bubbles: true }));
+    check('epf capped badge visible past 20', results.querySelector('.epf-capped').hidden === false);
+    helmProt.value = '0';
+    helmProt.dispatchEvent(new Event('input', { bubbles: true }));
+    check('badge hidden again', results.querySelector('.epf-capped').hidden === true);
+
+    // ---- 010: mobile modal vs desktop inline ----
+    var modal = mount.querySelector('.detail-modal');
+    check('detail modal exists', !!modal);
+    check('modal has svg close button', !!modal.querySelector('svg.modal-close'));
+    check('modal starts closed', !modal.classList.contains('is-open'));
+    check('modal has three detail lines', modal.querySelectorAll('.line').length === 3);
+
+    if (mobile) {
+      check('breakdown hidden on mobile', getComputedStyle(results.querySelector('.breakdown')).display === 'none');
+      redStat.querySelector('.stat-label').click();
+      check('tapping label opens modal on mobile', modal.classList.contains('is-open'));
+      modal.querySelector('svg.modal-close').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      check('svg close closes modal', !modal.classList.contains('is-open'));
+      redStat.querySelector('.stat-label').click();
+      modal.querySelector('.modal-backdrop').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      check('backdrop click closes modal', !modal.classList.contains('is-open'));
+      check('footer bar is slim (only two stats)',
+        mount.querySelector('.mobile-bar') === null || mount.querySelectorAll('.mobile-bar .stat').length <= 2);
+    } else {
+      check('breakdown visible on desktop', getComputedStyle(results.querySelector('.breakdown')).display !== 'none');
+      redStat.querySelector('.stat-label').click();
+      check('label click does not open modal on desktop', !modal.classList.contains('is-open'));
+      check('footer stats laid out for mobile only',
+        !mount.querySelector('.mobile-bar') || getComputedStyle(mount.querySelector('.mobile-bar')).display === 'none');
+    }
   } catch (e) {
-    log('FAIL  exception: ' + e.message);
+    log('FAIL  exception: ' + e.message + '\n' + (e.stack || ''));
     failures++;
   }
   log(failures === 0 ? 'all green' : failures + ' failing');

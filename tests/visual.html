@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><base href="../"><meta charset="utf-8"><link rel="stylesheet" href="css/style.css"></head>
+<body><main id="app"></main>
+<script src="js/calc.js"></script><script src="js/ui.js"></script>
+<script>
+  ProtUI.mount(document.getElementById('app'));
+  // pick a full diamond + leather mix so we can see tinted leather and numbers
+  var picks = [['helmet','leather'],['chestplate','diamond'],['leggings','iron'],['boots','gold']];
+  var mode = new URLSearchParams(location.search).get('mode') || 'popover';
+  picks.forEach(function (p) {
+    var row = document.querySelector('[data-slot="' + p[0] + '"]');
+    row.querySelector('.slot-trigger').click();
+    row.querySelector('.mat-option[data-material="' + p[1] + '"]').click();
+  });
+  if (mode === 'popover') {
+    var row = document.querySelector('[data-slot="chestplate"]');
+    row.querySelector('.slot-trigger').click();
+  } else if (mode === 'modal') {
+    document.querySelector('.mobile-bar .stat.reduction .stat-label').click();
+  }
+</script></body></html>

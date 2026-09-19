@@ -1,7 +1,10 @@
-// prot — ui mount. builds the whole dom from ProtCalc data and keeps it in sync.
+// prot — ui mount v2. icon-only, borderless, popover material picker,
+// shield levels for resistance, inline detail on desktop / modal on mobile.
 (function (root) {
   'use strict';
   var Calc = root.ProtCalc;
+  var TEX = 'assets/textures/';
+  var MOBILE = '(max-width: 760px)';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -10,50 +13,72 @@
     return n;
   }
 
+  function img(src, alt) {
+    var i = document.createElement('img');
+    i.src = src;
+    i.alt = alt || '';
+    i.draggable = false;
+    return i;
+  }
+
+  function materialTex(material, slot) {
+    return TEX + (material === 'none' ? 'empty_armor_slot_' + slot : material + '_' + slot) + '.png';
+  }
+
   function mount(container) {
     var state = { slots: {}, resistance: 0 };
     Calc.SLOTS.forEach(function (s) { state.slots[s] = { material: 'none', prot: 0 }; });
 
     var controls = el('section', 'controls');
     var durabilityEls = {};
+    var triggerEls = {};
+    var openPopover = null;
+
+    function closePopover() {
+      if (openPopover) {
+        openPopover.classList.remove('is-open');
+        openPopover = null;
+      }
+    }
 
     Calc.SLOTS.forEach(function (slot) {
-      var row = el('section', 'equip-row');
+      var row = el('section', 'slot-row');
       row.dataset.slot = slot;
 
-      var head = el('header', 'equip-head');
-      head.appendChild(el('h2', 'slot-label', slot));
-      var dur = el('span', 'durability', '');
-      durabilityEls[slot] = dur;
-      head.appendChild(dur);
-      row.appendChild(head);
+      var trigger = el('button', 'slot-trigger');
+      trigger.type = 'button';
+      trigger.appendChild(img(materialTex('none', slot), 'none'));
+      triggerEls[slot] = trigger;
 
-      var mats = el('div', 'mats');
+      var pop = el('div', 'material-popover');
       Calc.MATERIALS.forEach(function (material) {
-        var b = el('button', 'mat' + (material === 'none' ? ' is-active' : ''));
-        b.type = 'button';
-        b.dataset.material = material;
-        b.title = material;
-        var img = document.createElement('img');
-        img.src = 'assets/textures/' + (material === 'none'
-          ? 'empty_armor_slot_' + slot
-          : material + '_' + slot) + '.png';
-        img.alt = material;
-        img.draggable = false;
-        b.appendChild(img);
-        b.addEventListener('click', function () {
+        var opt = el('button', 'mat-option');
+        opt.type = 'button';
+        opt.dataset.material = material;
+        opt.appendChild(img(materialTex(material, slot), material));
+        opt.addEventListener('click', function (ev) {
+          ev.stopPropagation();
           state.slots[slot].material = material;
-          row.querySelectorAll('.mat').forEach(function (m) {
-            m.classList.toggle('is-active', m === b);
-          });
+          trigger.querySelector('img').src = materialTex(material, slot);
+          closePopover();
           render();
         });
-        mats.appendChild(b);
+        pop.appendChild(opt);
       });
-      row.appendChild(mats);
+      trigger.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var wasOpen = pop.classList.contains('is-open');
+        closePopover();
+        if (!wasOpen) {
+          pop.classList.add('is-open');
+          openPopover = pop;
+        }
+      });
+      row.appendChild(trigger);
+      row.appendChild(pop);
 
       var protWrap = el('div', 'prot');
-      protWrap.appendChild(el('span', 'prot-label', 'protection'));
+      protWrap.appendChild(el('span', 'prot-label', 'prot'));
       var dec = el('button', 'prot-dec', '-');
       var input = el('input', 'prot-input');
       input.type = 'number';
@@ -62,6 +87,8 @@
       input.value = '0';
       var inc = el('button', 'prot-inc', '+');
       dec.type = inc.type = 'button';
+
+      var slider = null;
 
       function setProt(v) {
         v = parseInt(v, 10);
@@ -79,88 +106,171 @@
       protWrap.appendChild(inc);
       row.appendChild(protWrap);
 
+      var dur = el('span', 'durability', '0');
+      durabilityEls[slot] = dur;
+      row.appendChild(dur);
+
       controls.appendChild(row);
     });
 
-    var res = el('section', 'resistance');
-    res.appendChild(el('span', 'res-label', 'resistance'));
-    var resDec = el('button', 'res-dec', '-');
-    var resInput = el('input', 'res-input');
-    resInput.type = 'number';
-    resInput.min = '0';
-    resInput.max = '5';
-    resInput.value = '0';
-    var resInc = el('button', 'res-inc', '+');
-    resDec.type = resInc.type = 'button';
-    function setRes(v) {
-      v = parseInt(v, 10);
-      if (isNaN(v) || v < 0) v = 0;
-      if (v > 5) v = 5;
-      state.resistance = v;
-      resInput.value = String(v);
+    var resRow = el('section', 'resistance-row');
+    var shield = img(TEX + 'effect_resistance.png', 'resistance');
+    shield.className = 'res-icon';
+    resRow.appendChild(shield);
+    var levelEls = [];
+    for (var lvl = 0; lvl <= 5; lvl++) {
+      (function (n) {
+        var b = el('button', 'res-level' + (n === 0 ? ' is-active' : ''), String(n));
+        b.type = 'button';
+        b.dataset.level = String(n);
+        b.addEventListener('click', function () { setRes(n); });
+        levelEls.push(b);
+        resRow.appendChild(b);
+      })(lvl);
+    }
+    function setRes(n) {
+      state.resistance = n;
+      levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === n); });
       render();
     }
-    resDec.addEventListener('click', function () { setRes(state.resistance - 1); });
-    resInc.addEventListener('click', function () { setRes(state.resistance + 1); });
-    resInput.addEventListener('input', function () { setRes(resInput.value); });
-    res.appendChild(resDec);
-    res.appendChild(resInput);
-    res.appendChild(resInc);
-    controls.appendChild(res);
+    controls.appendChild(resRow);
 
-    // ---- results panel ----
+    // ---- results ----
     var results = el('aside', 'results');
-    var redNum = el('div', 'big reduction', '100.00%');
-    var redCap = el('div', 'big-caption', 'reduction');
-    var takenNum = el('div', 'big taken', '100.00%');
-    var takenCap = el('div', 'big-caption', 'taken');
-    var breakdown = el('p', 'breakdown', '');
-    var capped = el('p', 'epf-capped', 'epf capped at 20 — max');
+
+    var breakdown = el('div', 'breakdown');
+    var lineArmor = el('p', 'line', 'armor 0.00%');
+    var lineProt = el('p', 'line', 'prot 0.00%');
+    var lineRes = el('p', 'line', 'res 0.00%');
+    breakdown.appendChild(lineArmor);
+    breakdown.appendChild(lineProt);
+    breakdown.appendChild(lineRes);
+
+    var statRed = el('div', 'stat reduction');
+    var redValue = el('span', 'stat-value', '100.00%');
+    var redLabel = el('span', 'stat-label', 'reduction');
+    statRed.appendChild(redValue);
+    statRed.appendChild(redLabel);
+
+    var statTaken = el('div', 'stat taken');
+    var takenValue = el('span', 'stat-value', '100.00%');
+    var takenLabel = el('span', 'stat-label', 'taken');
+    statTaken.appendChild(takenValue);
+    statTaken.appendChild(takenLabel);
+
+    var capped = el('p', 'epf-capped', 'epf capped at 20 - max');
     capped.hidden = true;
-    var dmgWrap = el('div', 'damage');
-    dmgWrap.appendChild(el('label', 'damage-label', 'damage'));
+
+    var damageRow = el('div', 'damage-row');
+    damageRow.appendChild(el('span', 'damage-label', 'damage'));
     var dmgInput = el('input', 'damage-input');
     dmgInput.type = 'number';
     dmgInput.min = '0';
     dmgInput.step = 'any';
     dmgInput.value = '';
-    dmgInput.placeholder = 'in half-hearts';
-    var dmgOut = el('p', 'damage-output', '');
-    dmgWrap.appendChild(dmgInput);
-    dmgWrap.appendChild(dmgOut);
+    dmgInput.placeholder = '0.00';
+    var dmgOut = el('div', 'damage-out');
+    var dmgVal = el('span', 'damage-value', '0.00');
+    var heartWrap = el('span', 'heart-out');
+    var heartIcon = img(TEX + 'heart.png', 'hearts');
+    heartIcon.className = 'heart-icon';
+    var heartVal = el('span', 'heart-value', '0.00');
+    dmgOut.appendChild(dmgVal);
+    heartWrap.appendChild(heartIcon);
+    heartWrap.appendChild(heartVal);
+    dmgOut.appendChild(heartWrap);
+    damageRow.appendChild(dmgInput);
+    damageRow.appendChild(dmgOut);
 
-    var redBox = el('div', 'big-box'); redBox.appendChild(redNum); redBox.appendChild(redCap);
-    var takenBox = el('div', 'big-box'); takenBox.appendChild(takenNum); takenBox.appendChild(takenCap);
-    results.appendChild(redBox);
-    results.appendChild(takenBox);
+    results.appendChild(statRed);
+    results.appendChild(statTaken);
     results.appendChild(breakdown);
+    results.appendChild(damageRow);
     results.appendChild(capped);
-    results.appendChild(dmgWrap);
+
+    // mobile footer bar (numbers pinned to both edges, labels centred under their number)
+    var mobileBar = el('div', 'mobile-bar');
+    var mRed = el('div', 'stat reduction');
+    var mRedValue = el('span', 'stat-value', '100.00%');
+    var mRedLabel = el('span', 'stat-label', 'reduction');
+    mRed.appendChild(mRedValue);
+    mRed.appendChild(mRedLabel);
+    var mTaken = el('div', 'stat taken');
+    var mTakenValue = el('span', 'stat-value', '100.00%');
+    var mTakenLabel = el('span', 'stat-label', 'taken');
+    mTaken.appendChild(mTakenValue);
+    mTaken.appendChild(mTakenLabel);
+    mobileBar.appendChild(mRed);
+    mobileBar.appendChild(mTaken);
+
+    // detail modal (mobile only): faded in/out, svg close, backdrop closes
+    var modal = el('div', 'detail-modal');
+    var backdrop = el('div', 'modal-backdrop');
+    var card = el('div', 'modal-card');
+    var close = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    close.setAttribute('viewBox', '0 0 24 24');
+    close.setAttribute('class', 'modal-close');
+    var cross = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    cross.setAttribute('d', 'M5 5 L19 19 M19 5 L5 19');
+    cross.setAttribute('stroke', 'currentColor');
+    cross.setAttribute('stroke-width', '2');
+    cross.setAttribute('fill', 'none');
+    close.appendChild(cross);
+    var modalLines = el('div', 'modal-lines');
+    var mLines = [el('p', 'line', 'armor 0.00%'), el('p', 'line', 'prot 0.00%'), el('p', 'line', 'res 0.00%')];
+    mLines.forEach(function (l) { modalLines.appendChild(l); });
+    card.appendChild(close);
+    card.appendChild(modalLines);
+    modal.appendChild(backdrop);
+    modal.appendChild(card);
+    container.appendChild(modal);
+
+    function openModal() {
+      modal.classList.add('is-open');
+    }
+    function closeModal() {
+      modal.classList.remove('is-open');
+    }
+    backdrop.addEventListener('click', closeModal);
+    close.addEventListener('click', function (ev) { ev.stopPropagation(); closeModal(); });
 
     function pct(x) { return (x * 100).toFixed(2) + '%'; }
+    function num(x) { return x.toFixed(2); }
 
     function render() {
       var r = Calc.compute(state);
-      redNum.textContent = pct(r.reductionRatio);
-      takenNum.textContent = pct(r.takenRatio);
-      breakdown.textContent =
-        'armor ' + pct(r.armorPct) + ' · prot ' + pct(r.epfPct) +
-        ' · resistance ' + pct(r.resPct) + ' -> taken ' + pct(r.takenRatio);
+      var red = pct(r.reductionRatio);
+      var taken = pct(r.takenRatio);
+
+      redValue.textContent = red;
+      takenValue.textContent = taken;
+      mRedValue.textContent = red;
+      mTakenValue.textContent = taken;
+
+      lineArmor.textContent = 'armor ' + pct(r.armorPct);
+      lineProt.textContent = 'prot ' + pct(r.epfPct);
+      lineRes.textContent = 'res ' + pct(r.resPct);
+      mLines[0].textContent = lineArmor.textContent;
+      mLines[1].textContent = lineProt.textContent;
+      mLines[2].textContent = lineRes.textContent;
+
       capped.hidden = !r.epfCapped;
 
       var dmg = parseFloat(dmgInput.value);
-      if (!isNaN(dmg) && dmg >= 0) {
-        var out = Calc.applyDamage(dmg, r);
-        dmgOut.textContent = '= ' + out.result.toFixed(2) + ' (' + out.hearts.toFixed(2) + ' hearts)';
+      if (isNaN(dmg) || dmg < 0) dmg = 0;
+      dmgVal.textContent = num(dmg);
+      if (dmg === 0) {
+        heartVal.textContent = num(0);
       } else {
-        dmgOut.textContent = '';
+        var out = Calc.applyDamage(dmg, r);
+        dmgVal.textContent = num(out.result);
+        heartVal.textContent = num(out.hearts);
       }
 
       Calc.SLOTS.forEach(function (slot) {
-        var d = Calc.durabilityOf(slot, state.slots[slot].material);
-        var dEl = durabilityEls[slot];
-        dEl.textContent = d == null ? '' : String(d);
-        dEl.hidden = d == null;
+        durabilityEls[slot].textContent = String(state.slots[slot].material === 'none'
+          ? 0
+          : Calc.durabilityOf(slot, state.slots[slot].material));
       });
     }
 
@@ -169,6 +279,18 @@
 
     container.appendChild(controls);
     container.appendChild(results);
+    container.appendChild(mobileBar);
+
+    document.addEventListener('click', function () { closePopover(); });
+
+    // mobile: tapping a stat label opens the detail modal
+    [redLabel, takenLabel, mRedLabel, mTakenLabel].forEach(function (label) {
+      label.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (matchMedia(MOBILE).matches) openModal();
+      });
+    });
+
     return { state: state, render: render };
   }
 
