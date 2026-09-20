@@ -137,7 +137,8 @@
 
     var oddBorders = [];
     mount.querySelectorAll('*').forEach(function (n) {
-      if (n === results || n === document.querySelector('.detail-modal')) return;
+      if (n === results || n.classList.contains('mobile-bar') ||
+          n.closest('.detail-modal')) return;
       var cs = getComputedStyle(n);
       if (['borderTopWidth', 'borderRightWidth', 'borderBottomWidth'].some(function (k) {
         return parseFloat(cs[k]) > 0;
@@ -205,7 +206,103 @@
     var out = results.querySelector('.damage-out');
     var order = Array.prototype.map.call(out.children, function (n) { return n.className; });
     check('damage order: value -> heart value -> heart icon (' + order.join(' ') + ')',
-      /damage-value/.test(order[0]) && /heart-value/.test(order[1]) && /heart-icon/.test(order[2]));
+      /damage-value/.test(order[0]) && /damage-equals/.test(order[1]) &&
+      /heart-value/.test(order[2]) && /heart-icon/.test(order[3]));
+
+    // ================= v4: palette, spacing, equals, persistence, reset =================
+    check('prot label is enchanted purple',
+      getComputedStyle(first.querySelector('.prot-label')).color === 'rgb(138, 92, 245)');
+    check('durability is muted green',
+      getComputedStyle(first.querySelector('.durability')).color === 'rgb(74, 143, 82)');
+    check('reduction value is green',
+      getComputedStyle(redStat.querySelector('.stat-value')).color === 'rgb(47, 125, 58)');
+    check('reduction label is dark green',
+      getComputedStyle(redStat.querySelector('.stat-label')).color === 'rgb(26, 84, 36)');
+    check('taken value is red',
+      getComputedStyle(takenStat.querySelector('.stat-value')).color === 'rgb(178, 58, 58)');
+    check('taken label is dark red',
+      getComputedStyle(takenStat.querySelector('.stat-label')).color === 'rgb(122, 32, 32)');
+
+    var equals = results.querySelector('.damage-equals');
+    check('equals sign between damage and hearts', !!equals && equals.textContent.trim() === '=');
+
+    var gapLeft = results.getBoundingClientRect().left - mount.querySelector('.controls').getBoundingClientRect().right;
+    var gapRight = parseFloat(resCs.paddingLeft);
+    check('divider neighbours equal (' + gapLeft.toFixed(0) + ' vs ' + gapRight.toFixed(0) + ')',
+      mobile || near(gapLeft, gapRight, 2));
+
+    // transitions sped up
+    var popTransition = getComputedStyle(pop).transitionDuration;
+    check('popover transition <= 100ms (' + popTransition + ')',
+      parseFloat(popTransition) <= 0.1);
+    var modalTransition = getComputedStyle(modal).transitionDuration;
+    check('modal transition <= 160ms (' + modalTransition + ')',
+      parseFloat(modalTransition) <= 0.16);
+
+    // reset control at the right end of the resistance row
+    var resetBtn = resRow.querySelector('.reset-button');
+    check('reset button exists with svg', !!resetBtn && !!resetBtn.querySelector('svg'));
+    var resetRect = resetBtn.getBoundingClientRect();
+    var levelsRect = levels[5].getBoundingClientRect();
+    check('reset sits to the right of the levels', resetRect.left >= levelsRect.right - 2);
+
+    // persistence: state survives a fresh mount
+    ['helmet', 'chestplate'].forEach(function (slot) {
+      var row = mount.querySelector('[data-slot="' + slot + '"]');
+      row.querySelector('.slot-trigger').click();
+      row.querySelector('.mat-option[data-material="iron"]').click();
+    });
+    mount.querySelector('[data-slot="helmet"] .prot-input').value = '3';
+    mount.querySelector('[data-slot="helmet"] .prot-input').dispatchEvent(new Event('input', { bubbles: true }));
+    levels[2].click();
+    dmg.value = '12';
+    dmg.dispatchEvent(new Event('input', { bubbles: true }));
+
+    var stored = window.localStorage.getItem('prot.state');
+    check('state written to localStorage', !!stored && /iron/.test(stored) && /"resistance":2/.test(stored));
+
+    var mount2 = document.createElement('main');
+    document.body.appendChild(mount2);
+    var app2 = ProtUI.mount(mount2);
+    check('restored iron helmet', app2.state.slots.helmet.material === 'iron');
+    check('restored prot 3', app2.state.slots.helmet.prot === 3);
+    check('restored resistance 2', app2.state.resistance === 2);
+    check('restored damage input', mount2.querySelector('.damage-input').value === '12');
+    mount2.remove();
+
+    // reset: confirm modal, then wipe state + storage
+    resetBtn.click();
+    var confirmModal = mount.querySelector('.reset-modal');
+    check('reset opens confirm modal', !!confirmModal && confirmModal.classList.contains('is-open'));
+    confirmModal.querySelector('.reset-cancel').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    check('cancel keeps state', app.state.slots.helmet.material === 'iron' &&
+      !confirmModal.classList.contains('is-open'));
+    resetBtn.click();
+    confirmModal.querySelector('.reset-confirm').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    check('confirm clears equipment', app.state.slots.helmet.material === 'none' &&
+      app.state.slots.chestplate.material === 'none');
+    check('confirm clears prot and resistance', app.state.slots.helmet.prot === 0 && app.state.resistance === 0);
+    check('confirm clears damage input', mount.querySelector('.damage-input').value === '');
+    var afterReset = window.localStorage.getItem('prot.state');
+    check('confirm clears storage (' + afterReset + ')',
+      !!afterReset && !/iron/.test(afterReset) && /"prot":0/.test(afterReset) &&
+      /"resistance":0/.test(afterReset));
+    check('reset modal closed after confirm', !confirmModal.classList.contains('is-open'));
+
+    // vertical compression
+    var controlsGap = parseFloat(getComputedStyle(mount.querySelector('.controls')).rowGap);
+    check('control rows tightly packed (' + controlsGap + 'px)',
+      mobile ? controlsGap <= 26 : controlsGap <= 30);
+    var resGap = parseFloat(getComputedStyle(resRow).marginTop) || controlsGap;
+    check('resistance row separated from boots by a larger gap (' + resGap + ' vs ' + controlsGap + ')',
+      resGap > controlsGap);
+    if (mobile) {
+      var bar = mount.querySelector('.mobile-bar');
+      check('mobile footer has a top divider', parseFloat(getComputedStyle(bar).borderTopWidth) >= 2);
+      check('mobile footer is not sticky', getComputedStyle(bar).position !== 'fixed');
+      check('one screen fits empty config (' + mount.getBoundingClientRect().height.toFixed(0) + 'px)',
+        mount.getBoundingClientRect().height <= 700);
+    }
 
     // narrow-viewport popover wraps rather than overflowing
     {

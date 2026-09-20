@@ -25,9 +25,36 @@
     return TEX + (material === 'none' ? 'empty_armor_slot_' + slot : material + '_' + slot) + '.png';
   }
 
-  function mount(container) {
-    var state = { slots: {}, resistance: 0 };
+  var STORE_KEY = 'prot.state';
+
+  function defaultState() {
+    var state = { slots: {}, resistance: 0, damage: '' };
     Calc.SLOTS.forEach(function (s) { state.slots[s] = { material: 'none', prot: 0 }; });
+    return state;
+  }
+
+  function loadState() {
+    var state = defaultState();
+    try {
+      var raw = root.localStorage && root.localStorage.getItem(STORE_KEY);
+      if (!raw) return state;
+      var saved = JSON.parse(raw);
+      Calc.SLOTS.forEach(function (slot) {
+        var piece = saved.slots && saved.slots[slot];
+        if (!piece) return;
+        if (Calc.MATERIALS.indexOf(piece.material) !== -1) state.slots[slot].material = piece.material;
+        var prot = parseInt(piece.prot, 10);
+        if (!isNaN(prot) && prot >= 0 && prot <= 32767) state.slots[slot].prot = prot;
+      });
+      var res = parseInt(saved.resistance, 10);
+      if (!isNaN(res) && res >= 0 && res <= 5) state.resistance = res;
+      if (typeof saved.damage === 'string') state.damage = saved.damage;
+    } catch (e) { /* corrupt storage: fall back to defaults */ }
+    return state;
+  }
+
+  function mount(container) {
+    var state = loadState();
 
     var controls = el('section', 'controls');
     var durabilityEls = {};
@@ -47,7 +74,7 @@
 
       var trigger = el('button', 'slot-trigger');
       trigger.type = 'button';
-      trigger.appendChild(img(materialTex('none', slot), 'none'));
+      trigger.appendChild(img(materialTex(state.slots[slot].material, slot), state.slots[slot].material));
       triggerEls[slot] = trigger;
 
       var pop = el('div', 'material-popover');
@@ -84,7 +111,7 @@
       input.type = 'number';
       input.min = '0';
       input.max = '32767';
-      input.value = '0';
+      input.value = String(state.slots[slot].prot);
       var inc = el('button', 'prot-inc', '+');
       dec.type = inc.type = 'button';
 
@@ -123,7 +150,7 @@
     var levelGrid = el('div', 'res-levels');
     for (var lvl = 0; lvl <= 5; lvl++) {
       (function (n) {
-        var b = el('button', 'res-level' + (n === 0 ? ' is-active' : ''), String(n));
+        var b = el('button', 'res-level' + (n === state.resistance ? ' is-active' : ''), String(n));
         b.type = 'button';
         b.dataset.level = String(n);
         b.addEventListener('click', function () { setRes(n); });
@@ -132,6 +159,36 @@
       })(lvl);
     }
     resRow.appendChild(levelGrid);
+
+    var resetBtn = el('button', 'reset-button');
+    resetBtn.type = 'button';
+    resetBtn.title = 'reset';
+    var resetSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    resetSvg.setAttribute('viewBox', '0 0 24 24');
+    var resetPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    resetPath.setAttribute('d', 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5');
+    resetPath.setAttribute('fill', 'none');
+    resetPath.setAttribute('stroke', 'currentColor');
+    resetPath.setAttribute('stroke-width', '2');
+    resetSvg.appendChild(resetPath);
+    resetBtn.appendChild(resetSvg);
+    resRow.appendChild(resetBtn);
+    controls.appendChild(resRow);
+
+    var resetModal = el('div', 'detail-modal reset-modal');
+    var resetBackdrop = el('div', 'modal-backdrop');
+    var resetCard = el('div', 'modal-card');
+    resetCard.appendChild(el('p', 'reset-question', 'reset all?'));
+    var resetActions = el('div', 'reset-actions');
+    var resetCancel = el('button', 'reset-cancel', 'cancel');
+    var resetConfirm = el('button', 'reset-confirm', 'reset');
+    resetCancel.type = resetConfirm.type = 'button';
+    resetActions.appendChild(resetCancel);
+    resetActions.appendChild(resetConfirm);
+    resetCard.appendChild(resetActions);
+    resetModal.appendChild(resetBackdrop);
+    resetModal.appendChild(resetCard);
+
     function setRes(n) {
       state.resistance = n;
       levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === n); });
@@ -179,14 +236,16 @@
     dmgInput.type = 'number';
     dmgInput.min = '0';
     dmgInput.step = 'any';
-    dmgInput.value = '';
+    dmgInput.value = state.damage || '';
     dmgInput.placeholder = '0.00';
     var dmgOut = el('div', 'damage-out');
     var dmgVal = el('span', 'damage-value', '0.00');
     var heartVal = el('span', 'heart-value', '0.00');
     var heartIcon = img(TEX + 'heart.png', 'hearts');
     heartIcon.className = 'heart-icon';
+    var equals = el('span', 'damage-equals', '=');
     dmgOut.appendChild(dmgVal);
+    dmgOut.appendChild(equals);
     dmgOut.appendChild(heartVal);
     dmgOut.appendChild(heartIcon);
     damageRow.appendChild(dmgInput);
@@ -282,14 +341,42 @@
           ? 0
           : Calc.durabilityOf(slot, state.slots[slot].material));
       });
+
+      state.damage = dmgInput.value;
+      try {
+        if (root.localStorage) root.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      } catch (e) { /* private mode: run without persistence */ }
     }
 
     dmgInput.addEventListener('input', render);
     render();
 
+    function closeReset() { resetModal.classList.remove('is-open'); }
+
+    resetBtn.addEventListener('click', function () { resetModal.classList.add('is-open'); });
+    resetBackdrop.addEventListener('click', closeReset);
+    resetCancel.addEventListener('click', closeReset);
+    resetConfirm.addEventListener('click', function () {
+      Calc.SLOTS.forEach(function (slot) {
+        state.slots[slot].material = 'none';
+        state.slots[slot].prot = 0;
+        var row = container.querySelector('[data-slot="' + slot + '"]');
+        row.querySelector('.slot-trigger img').src = materialTex('none', slot);
+        row.querySelector('.prot-input').value = '0';
+      });
+      state.resistance = 0;
+      levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === 0); });
+      dmgInput.value = '';
+      state.damage = '';
+      try { if (root.localStorage) root.localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
+      closeReset();
+      render();
+    });
+
     container.appendChild(controls);
     container.appendChild(results);
     container.appendChild(mobileBar);
+    container.appendChild(resetModal);
 
     document.addEventListener('click', function () { closePopover(); });
 
