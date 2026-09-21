@@ -198,7 +198,55 @@
     var protRect = first.querySelector('.prot').getBoundingClientRect();
     check('popover sits to the right of the trigger (' + popRect.left.toFixed(0) +
       ' >= ' + trigRect.right.toFixed(0) + ')', popRect.left >= trigRect.right - 2);
-    check('popover covers the prot control', popRect.left < protRect.right && popRect.right > protRect.left);
+    check('popover sits right of the trigger and reaches the prot column',
+      popRect.left >= trigRect.right - 2 && popRect.left < protRect.right);
+
+    // ================= v5: prot gap, group width, popover layout =================
+    var labelRect = first.querySelector('.prot-label').getBoundingClientRect();
+    var decRect = first.querySelector('.prot-dec').getBoundingClientRect();
+    var gapProt = decRect.left - labelRect.right;
+    check('prot label to stepper gap <= 18px (' + gapProt.toFixed(0) + ')', gapProt <= 18);
+    check('prot label to stepper gap >= 8px (' + gapProt.toFixed(0) + ')', gapProt >= 8);
+
+    var groupWidth = parseFloat(getComputedStyle(first.querySelector('.prot')).width);
+    var levelsWidth = parseFloat(getComputedStyle(resRow.querySelector('.res-levels')).width);
+    check('prot group and resistance levels share width (' + groupWidth.toFixed(0) +
+      ' vs ' + levelsWidth.toFixed(0) + ')', near(groupWidth, levelsWidth, 1));
+    var trackWidth = first.querySelector('.durability').getBoundingClientRect().left -
+      first.querySelector('.slot-trigger').getBoundingClientRect().right;
+    check('prot group narrower than its track (' + groupWidth.toFixed(0) +
+      ' < ' + trackWidth.toFixed(0) + ')', groupWidth < trackWidth - 20);
+
+    if (mobile) {
+      var colRect = mount.querySelector('.controls').getBoundingClientRect();
+      var mLabel = first.querySelector('.prot-label').getBoundingClientRect();
+      check('mobile prot group shifted right (label ' + mLabel.left.toFixed(0) +
+        ' > column ' + colRect.left.toFixed(0) + ')', mLabel.left > colRect.left + 40);
+      check('mobile prot group hugs right edge (' + mLabel.left.toFixed(0) + ' + ' +
+        groupWidth.toFixed(0) + ')',
+        near(mLabel.left + groupWidth, first.querySelector('.prot').getBoundingClientRect().right, 1));
+
+      var optTops = Array.prototype.map.call(pop.querySelectorAll('.mat-option'),
+        function (n) { return n.getBoundingClientRect().top; });
+      var uniqTops = optTops.filter(function (v, i) { return optTops.indexOf(v) === i; });
+      check('mobile popover lays out as two rows (' + uniqTops.length + ' distinct tops)',
+        uniqTops.length === 2);
+      var firstRowCount = optTops.filter(function (v) { return v === uniqTops[0]; }).length;
+      check('mobile popover first row holds three options (' + firstRowCount + ')', firstRowCount === 3);
+      var optLefts = Array.prototype.map.call(pop.querySelectorAll('.mat-option'),
+        function (n) { return n.getBoundingClientRect().left; });
+      var popLeft = pop.getBoundingClientRect().left;
+      check('mobile popover first row starts at box left (' + optLefts[0].toFixed(0) +
+        ' vs ' + popLeft.toFixed(0) + ')', near(optLefts[0], popLeft, 8));
+      var trigTop = first.querySelector('.slot-trigger').getBoundingClientRect().top;
+      check('mobile popover first row aligns with trigger top (' + uniqTops[0].toFixed(0) +
+        ' vs ' + trigTop.toFixed(0) + ')', near(uniqTops[0], trigTop, 6));
+    } else {
+      var dTops = Array.prototype.map.call(pop.querySelectorAll('.mat-option'),
+        function (n) { return n.getBoundingClientRect().top; });
+      var dUniq = dTops.filter(function (v, i) { return dTops.indexOf(v) === i; });
+      check('desktop popover stays a single row (' + dUniq.length + ')', dUniq.length === 1);
+    }
     var rowH = first.getBoundingClientRect().height;
     pop.querySelector('.mat-option[data-material="none"]').click();
     check('row height unchanged by popover', near(first.getBoundingClientRect().height, rowH, 1));
@@ -212,14 +260,14 @@
     // ================= v4: palette, spacing, equals, persistence, reset =================
     check('prot label is enchanted purple',
       getComputedStyle(first.querySelector('.prot-label')).color === 'rgb(138, 92, 245)');
-    check('durability is muted green',
-      getComputedStyle(first.querySelector('.durability')).color === 'rgb(74, 143, 82)');
+    check('durability is brighter green',
+      getComputedStyle(first.querySelector('.durability')).color === 'rgb(95, 168, 99)');
     check('reduction value is green',
       getComputedStyle(redStat.querySelector('.stat-value')).color === 'rgb(47, 125, 58)');
     check('reduction label is dark green',
       getComputedStyle(redStat.querySelector('.stat-label')).color === 'rgb(26, 84, 36)');
-    check('taken value is red',
-      getComputedStyle(takenStat.querySelector('.stat-value')).color === 'rgb(178, 58, 58)');
+    check('taken value is brighter red',
+      getComputedStyle(takenStat.querySelector('.stat-value')).color === 'rgb(204, 68, 68)');
     check('taken label is dark red',
       getComputedStyle(takenStat.querySelector('.stat-label')).color === 'rgb(122, 32, 32)');
 

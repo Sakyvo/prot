@@ -12,14 +12,15 @@
   --ink: #101418;
   --ink-soft: #4a5560;
   --enchanted: #8a5cf5;
-  --durability: #4a8f52;
+  --durability: #5fa863;
   --reduction: #2f7d3a;
   --reduction-soft: #1a5424;
-  --taken: #b23a3a;
+  --taken: #cc4444;
   --taken-soft: #7a2020;
   --wash: rgba(255, 255, 255, 0.45);
   --wash-strong: rgba(255, 255, 255, 0.78);
   --control-col: 240px;
+  --prot-group: 200px;
   --stat-col: 186px;
 }
 
@@ -119,6 +120,8 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: var(--prot-group);
+  justify-self: start;
 }
 
 .prot-label { color: var(--enchanted); }
@@ -174,6 +177,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   grid-template-columns: repeat(6, 1fr);
   align-items: center;
   justify-items: center;
+  width: var(--prot-group);
+  justify-self: start;
 }
 
 .reset-button {
@@ -341,7 +346,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ---------- mobile ---------- */
 
 @media (max-width: 760px) {
-  :root { --control-col: 100%; }
+  :root { --control-col: 100%; --prot-group: 184px; }
 
   main {
     grid-template-columns: 1fr;
@@ -356,7 +361,24 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .slot-trigger, .slot-trigger img { width: 44px; height: 44px; }
 
-  .material-popover { left: 44px; max-width: calc(100% - 44px); }
+  .material-popover {
+    left: 44px;
+    right: auto;
+    width: max-content;
+    max-width: calc(100% - 56px);
+    top: -6px;
+    transform: none;
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    justify-items: start;
+    align-content: start;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .prot { justify-self: end; }
+
+  .res-levels { justify-self: end; }
 
   .resistance-row {
     grid-template-columns: 44px minmax(0, 1fr) 40px;
