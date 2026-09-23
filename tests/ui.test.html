@@ -258,6 +258,29 @@
     pop.querySelector('.mat-option[data-material="none"]').click();
     check('row height unchanged by popover', near(first.getBoundingClientRect().height, rowH, 1));
 
+    // boots edge case: last row keeps the 3x2 box, overflowing downward past the resistance row
+    var bootRow = mount.querySelector('[data-slot="boots"]');
+    bootRow.querySelector('.slot-trigger').click();
+    var bootPop = bootRow.querySelector('.material-popover');
+    var bootTops = Array.prototype.map.call(bootPop.querySelectorAll('.mat-option'),
+      function (n) { return Math.round(n.getBoundingClientRect().top); });
+    var bootUniq = bootTops.filter(function (v, i) { return bootTops.indexOf(v) === i; });
+    check('boots popover keeps two rows on mobile / one on desktop (' + bootUniq.length + ')',
+      bootUniq.length === (mobile ? 2 : 1));
+    check('boots popover keeps six options',
+      bootPop.querySelectorAll('.mat-option').length === 6);
+    if (mobile) {
+      check('boots popover clears the damage label by >= 20px (' +
+        (dmg.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom).toFixed(0) + ')',
+        dmg.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom >= 20);
+    } else {
+      check('desktop boots popover also fits armor height (' +
+        bootPop.getBoundingClientRect().height.toFixed(0) + ')',
+        near(bootPop.getBoundingClientRect().height, bootRow.querySelector('.slot-trigger')
+          .getBoundingClientRect().height, 1));
+    }
+    bootPop.querySelector('.mat-option[data-material="none"]').click();
+
     var out = results.querySelector('.damage-out');
     var order = Array.prototype.map.call(out.children, function (n) { return n.className; });
     check('damage order: value -> heart value -> heart icon (' + order.join(' ') + ')',
