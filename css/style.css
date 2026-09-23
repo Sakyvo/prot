@@ -96,7 +96,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 10px;
+  padding: 6px;
   background: var(--wash-strong);
   opacity: 0;
   visibility: hidden;
@@ -366,7 +366,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     right: auto;
     width: max-content;
     max-width: calc(100% - 56px);
-    top: -6px;
+    top: 0;
     transform: none;
     display: grid;
     grid-template-columns: repeat(3, 44px);

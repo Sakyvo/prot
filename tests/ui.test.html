@@ -201,6 +201,9 @@
     check('popover sits right of the trigger and reaches the prot column',
       popRect.left >= trigRect.right - 2 && popRect.left < protRect.right);
 
+    var popPad = getComputedStyle(pop).paddingTop;
+    check('popover padding tightened to 6px (' + popPad + ')', parseFloat(popPad) === 6);
+
     // ================= v5: prot gap, group width, popover layout =================
     var labelRect = first.querySelector('.prot-label').getBoundingClientRect();
     var decRect = first.querySelector('.prot-dec').getBoundingClientRect();
@@ -239,13 +242,17 @@
       check('mobile popover first row starts at box left (' + optLefts[0].toFixed(0) +
         ' vs ' + popLeft.toFixed(0) + ')', near(optLefts[0], popLeft, 8));
       var trigTop = first.querySelector('.slot-trigger').getBoundingClientRect().top;
-      check('mobile popover first row aligns with trigger top (' + uniqTops[0].toFixed(0) +
-        ' vs ' + trigTop.toFixed(0) + ')', near(uniqTops[0], trigTop, 6));
+      check('mobile popover box top flush with trigger top (' + popRect.top.toFixed(0) +
+        ' vs ' + trigTop.toFixed(0) + ')', near(popRect.top, trigTop, 1));
+      check('mobile popover first row sits at box top + padding (' + uniqTops[0].toFixed(0) +
+        ' vs ' + (popRect.top + 6).toFixed(0) + ')', near(uniqTops[0], popRect.top + 6, 1));
     } else {
       var dTops = Array.prototype.map.call(pop.querySelectorAll('.mat-option'),
         function (n) { return n.getBoundingClientRect().top; });
       var dUniq = dTops.filter(function (v, i) { return dTops.indexOf(v) === i; });
       check('desktop popover stays a single row (' + dUniq.length + ')', dUniq.length === 1);
+      check('desktop popover height equals armor height (' + popRect.height.toFixed(0) +
+        ' vs ' + trigRect.height.toFixed(0) + ')', near(popRect.height, trigRect.height, 1));
     }
     var rowH = first.getBoundingClientRect().height;
     pop.querySelector('.mat-option[data-material="none"]').click();
