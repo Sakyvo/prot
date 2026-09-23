@@ -1,7 +1,29 @@
 <!doctype html><html><head><base href="../"><meta charset="utf-8"><link rel="stylesheet" href="css/style.css"></head>
 <body><p style="font-family:'Minecraft AE'">prot</p>
 <script>
-document.fonts.ready.then(function () {
-  console.log('[font] loaded minecraft ae: ' + document.fonts.check('16px "Minecraft AE"'));
-});
+(function () {
+  function log(s) { console.log('[font] ' + s); }
+  var failures = 0;
+  function check(name, cond) { if (!cond) failures++; log((cond ? 'pass' : 'FAIL') + '  ' + name); }
+
+  document.fonts.ready.then(function () {
+    check('minecraft ae loaded', document.fonts.check('16px "Minecraft AE"'));
+
+    var probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;left:-9999px;font-family:"Minecraft AE";' +
+      'font-size:16px;white-space:pre';
+    probe.textContent = '0000';
+    document.body.appendChild(probe);
+    var four = probe.getBoundingClientRect().width;
+    probe.textContent = ' ';
+    var space = probe.getBoundingClientRect().width;
+    document.body.removeChild(probe);
+
+    // bold face metrics at 16px: 0 -> 12px, space -> 12px (courier fallback would be 9.6 / 19.2)
+    check('digit advance is 12px (got ' + four.toFixed(2) + ' for four digits)', Math.abs(four - 48) < 1.5);
+    check('space advance is 12px (got ' + space.toFixed(2) + ')', Math.abs(space - 12) < 1.5);
+
+    log(failures === 0 ? 'all green' : failures + ' failing');
+  });
+})();
 </script></body></html>

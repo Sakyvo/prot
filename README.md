@@ -36,9 +36,9 @@ zero build — open `index.html`, or any static server:
 python -m http.server
 ```
 
-tests: `node tests/calc.test.js`, and `tests/ui.test.html` in a headless browser.
+tests: `node tests/calc.test.js`, and `tests/ui.test.html` in a headless browser. `tests/font-check.html` asserts the shipped face really loads and keeps its 12px advance width at 16px.
 
 ## assets
 
 - textures from the `!!!!Eum3 Blue Revamp` resource pack (site-local copies under `assets/textures/`)
-- font: minecraft ae (`assets/fonts/`)
+- font: minecraft ae **bold**, subset of `K:/PvP/MinecraftAE-Bold.ttf` into `assets/fonts/` via `tools/subset-font.sh` (ascii + the few punctuation glyphs the site uses, ~2 KB)

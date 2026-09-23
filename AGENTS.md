@@ -7,7 +7,7 @@ prot：Minecraft 1.8.9 减伤计算器（盔甲 + 保护附魔 + 抗性提升 �
 - 纯静态零构建：`index.html` + 原生 js/css，不引入构建工具与框架。
 - 公式、护甲/耐久数值一律以 `CONTEXT.md` 为唯一事实源，改数值先改 `CONTEXT.md`。
 - 全英文、全小写文案；视觉只准米白底 + 黑线框，无红黄蓝等彩色点缀。
-- 字体只用本地 assets 中的 Minecraft AE；贴图只从站点 assets 读取，运行时不引用资源包目录。
+- 字体只用本地 assets 中的 Minecraft AE Bold(源字型 `K:\PvP\MinecraftAE-Bold.ttf`,用 `tools/subset-font.sh` 重新生成子集);贴图只从站点 assets 读取,运行时不引用资源包目录。
 - `!!!!Eum3 Blue Revamp/` 是素材源不入选址资源；站点只用资产副本。
 
 ## 按需读取索引

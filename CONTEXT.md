@@ -19,4 +19,4 @@ Minecraft 1.8.9 减伤计算器，托管于 GitHub 仓库 `Sakyvo/prot`，域名
 
 - 公式与数值核验：MCP-919（1.8.9 decompiled）`net/minecraft/entity/EntityLivingBase.java`：计算顺序 armor → resistance → protection；EPF 封顶 20；抗性负伤害截断为 0。
 - 贴图：仓库内 `!!!!Eum3 Blue Revamp` 资源包（`assets/minecraft/textures/items/`）。
-- 字体：Minecraft AE（外部下载）。
+- 字体:Minecraft AE Bold(源文件 `K:\PvP\MinecraftAE-Bold.ttf`,经 `tools/subset-font.sh` 子集化后入库 `assets/fonts/`)。
