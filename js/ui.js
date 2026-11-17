@@ -227,7 +227,7 @@
     statTaken.appendChild(takenValue);
     statTaken.appendChild(takenLabel);
 
-    var capped = el('p', 'epf-capped', 'epf capped at 20 - max');
+    var capped = el('p', 'epf-capped', 'epf capped at max - no further gain');
     capped.hidden = true;
 
     var damageRow = el('div', 'damage-row');

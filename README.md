@@ -8,15 +8,21 @@ minecraft 1.8.9 damage reduction calculator — stack armor, protection enchantm
 
 ```
 taken = damage * (1 - min(armor, 20) * 0.04)
-               * (1 - min(epf, 20) * 0.04)
+               * (1 - epf_expectation)
                * (1 - resistance * 0.20)
 ```
 
-- armor: 4% per point, capped at 20 points (80%)
-- epf: sum of protection levels across the four slots, 4% per epf, hard-capped at 20 (`if (k > 20) k = 20;` in `EntityLivingBase.applyPotionDamageCalculations`, mcp-919 decompile). vanilla full prot iv = epf 16 = 64%.
-- resistance: 20% per level; level 5 = full immunity.
+- **armor**: 4% per point, capped at 20 points (80%). deterministic in 1.8.9 (`damage * (25 - armor) / 25`, no roll — the randomization arrived in 1.9).
+- **protection** is a *random roll* in game, so this tool shows its **expectation**. four steps, all from the 1.8.9 decompile:
+  1. per piece: `floor((6 + level²) / 3 * 0.75)` (`EnchantmentProtection.calcModifierDamage`, all-round protection = type 0). level 0/1/2/3/4 → 0/1/2/3/5.
+  2. sum the four pieces, then pre-cap at 25: `if (m > 25) m = 25;` (`EnchantmentHelper.getEnchantmentModifierDamage`).
+  3. random roll: the modifier is uniform over `[ceil(m/2), m]`.
+  4. effective cap at 20: `if (k > 20) k = 20;` (`EntityLivingBase.applyPotionDamageCalculations`), each point = 4%.
 
-verified against mcp-919 (1.8.9 decompiled source) and the minecraft wiki.
+  so vanilla full prot iv = 4 × 5 = raw 20 (under the pre-cap), roll expectation 15 → **60%** (not the 64% of the old linear model). a single protection segment tops out near **71.38%** and never reaches the 80% ceiling. absurd levels saturate at the 25 pre-cap — no overflow, never negative damage. the UI flags `epf capped` once the raw four-piece sum passes 25.
+- **resistance**: 20% per level; level 5 = full immunity.
+
+verified against the 1.8.9 decompile ([MavenMCP-1.8.9](https://github.com/Marcelektro/MavenMCP-1.8.9); `RealmsSharedConstants` reports 1.8.9 / protocol 47) and the minecraft wiki. the local `CheatBreaker` tree used in earlier notes is **1.7.10** and is not valid evidence for 1.8.9 numbers. the randomization-to-expectation shape is ported from Polypatcher's `ArmorStatusRenderer`.
 
 ## hypothetical mode
 

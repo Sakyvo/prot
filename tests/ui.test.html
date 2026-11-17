@@ -99,10 +99,31 @@
     var helmProt = mount.querySelector('[data-slot="helmet"] .prot-input');
     helmProt.value = '21';
     helmProt.dispatchEvent(new Event('input', { bubbles: true }));
-    check('epf capped badge visible past 20', results.querySelector('.epf-capped').hidden === false);
+    check('epf capped badge visible past 25 raw', results.querySelector('.epf-capped').hidden === false);
     helmProt.value = '0';
     helmProt.dispatchEvent(new Event('input', { bubbles: true }));
     check('badge hidden again', results.querySelector('.epf-capped').hidden === true);
+
+    // full diamond + protection IV: raw epf = 4 * floor(22/3*0.75) = 20 (under the pre-cap of 25)
+    // roll expectation is 3..4..5 mean 4 -> 60% protection -> taken 8%
+    ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
+      var row = mount.querySelector('[data-slot="' + slot + '"]');
+      row.querySelector('.slot-trigger').click();
+      row.querySelector('.mat-option[data-material="diamond"]').click();
+      var pi = row.querySelector('.prot-input');
+      pi.value = '4';
+      pi.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    check('prot4 x4: badge stays hidden (raw 20 <= 25)',
+      results.querySelector('.epf-capped').hidden === true);
+    check('prot4 x4: taken 8.00%',
+      takenStat.querySelector('.stat-value').textContent.trim() === '8.00%');
+    check('prot4 x4: breakdown prot 60.00%',
+      results.querySelectorAll('.breakdown .line-value')[1].textContent.trim() === '60.00%');
+
+    var badge = results.querySelector('.epf-capped');
+    check('badge wording avoids protection/resistance',
+      badge.textContent.indexOf('protection') === -1 && badge.textContent.indexOf('resistance') === -1);
 
     // modal plumbing
     var modal = mount.querySelector('.detail-modal');
