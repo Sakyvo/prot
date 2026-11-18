@@ -29,9 +29,11 @@
 
   function defaultState() {
     var state = {
+      tab: 'def',
+      mode: 'ccl',
       slots: {},
       resistance: 0,
-      damage: '',
+      manual: '',
       attack: { weapon: '', sharpness: 0, strength: 0, weakness: 0, crit: false }
     };
     Calc.SLOTS.forEach(function (s) { state.slots[s] = { material: 'none', prot: 0 }; });
@@ -53,7 +55,11 @@
       });
       var res = parseInt(saved.resistance, 10);
       if (!isNaN(res) && res >= 0 && res <= 5) state.resistance = res;
-      if (typeof saved.damage === 'string') state.damage = saved.damage;
+      if (saved.tab === 'def' || saved.tab === 'dmg') state.tab = saved.tab;
+      if (saved.mode === 'ccl' || saved.mode === 'mnl') state.mode = saved.mode;
+      // a pre-mode blob kept the value in `damage`; it now seeds the manual input
+      if (typeof saved.manual === 'string') state.manual = saved.manual;
+      else if (typeof saved.damage === 'string') state.manual = saved.damage;
       var savedAttack = saved.attack || {};
       if (typeof savedAttack.weapon === 'string' || typeof savedAttack.weapon === 'number') {
         state.attack.weapon = savedAttack.weapon;
@@ -76,10 +82,12 @@
     var panelEls = {};
 
     function setTab(id) {
+      state.tab = id;
       TABS.forEach(function (name) {
         if (tabEls[name]) tabEls[name].classList.toggle('is-active', name === id);
         if (panelEls[name]) panelEls[name].hidden = name !== id;
       });
+      save();
     }
 
     TABS.forEach(function (id) {
@@ -178,12 +186,55 @@
     critRow.appendChild(critBox);
     dmgControls.appendChild(critRow);
 
+    // manual mode row: hidden while ccl owns the number
+    var manualRow = dmgRow('manual', 'manual');
+    var manualInput = el('input', 'prot-input manual-input');
+    manualInput.type = 'number';
+    manualInput.min = '0';
+    manualInput.step = 'any';
+    manualInput.placeholder = '0.00';
+    manualInput.value = state.manual === '' ? '' : String(state.manual);
+    manualInput.addEventListener('input', function () {
+      state.manual = manualInput.value;
+      render();
+    });
+    manualRow.appendChild(manualInput);
+    dmgControls.appendChild(manualRow);
+
+    // mode switch: ccl computes the damage, mnl takes the number as given
+    var modeRow = el('section', 'mode-row');
+    modeRow.appendChild(el('span', 'dmg-label', 'mode'));
+    var modeBtns = {};
+    ['ccl', 'mnl'].forEach(function (name) {
+      var b = el('button', 'mode', name);
+      b.type = 'button';
+      b.dataset.mode = name;
+      b.addEventListener('click', function () { setMode(name); });
+      modeBtns[name] = b;
+      modeRow.appendChild(b);
+    });
+    dmgControls.insertBefore(modeRow, dmgControls.firstChild);
+
     weaponInput.addEventListener('input', function () {
       state.attack.weapon = weaponInput.value;
       render();
     });
 
     dmgPanel.appendChild(dmgControls);
+
+    function setMode(name) {
+      state.mode = name;
+      ['ccl', 'mnl'].forEach(function (key) {
+        if (modeBtns[key]) modeBtns[key].classList.toggle('is-active', key === name);
+      });
+      dmgTag.textContent = name;
+      dmgPanel.querySelectorAll('.dmg-row').forEach(function (row) {
+        var isManual = row.dataset.field === 'manual';
+        row.hidden = name === 'mnl' ? !isManual : isManual;
+      });
+      render();
+      save();
+    }
 
     // ---- def panel: armor + resistance ----
     var controls = el('section', 'controls');
@@ -400,6 +451,12 @@
     confirmModal.appendChild(confirmBackdrop);
     confirmModal.appendChild(confirmCard);
 
+    function save() {
+      try {
+        if (root.localStorage) root.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      } catch (e) { /* private mode: run without persistence */ }
+    }
+
     function pct(x) { return (x * 100).toFixed(2) + '%'; }
     function num(x) { return x.toFixed(2); }
 
@@ -419,7 +476,9 @@
 
       capped.hidden = !r.epfCapped;
 
-      var dmg = Calc.attackDamage(state.attack);
+      var manual = parseFloat(state.manual);
+      if (isNaN(manual) || manual < 0) manual = 0;
+      var dmg = state.mode === 'mnl' ? manual : Calc.attackDamage(state.attack);
       dmgValue.textContent = num(dmg);
       var out = Calc.applyDamage(dmg, r);
       dmgVal.textContent = num(out.result);
@@ -431,9 +490,7 @@
           : Calc.durabilityOf(slot, state.slots[slot].material));
       });
 
-      try {
-        if (root.localStorage) root.localStorage.setItem(STORE_KEY, JSON.stringify(state));
-      } catch (e) { /* private mode: run without persistence */ }
+      save();
     }
 
     function closeReset() { confirmModal.classList.remove('is-open'); }
@@ -452,12 +509,15 @@
       state.resistance = 0;
       levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === 0); });
       state.attack = { weapon: '', sharpness: 0, strength: 0, weakness: 0, crit: false };
+      state.manual = '';
       weaponInput.value = '';
+      manualInput.value = '';
       levelInputs.sharpness.value = '0';
       levelInputs.strength.value = '0';
       levelInputs.weakness.value = '0';
       critBox.checked = false;
-      dmgTag.textContent = 'ccl';
+      setMode('ccl');
+      setTab('def');
       try { if (root.localStorage) root.localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
       closeReset();
       render();
@@ -473,7 +533,8 @@
 
     document.addEventListener('click', function () { closePopover(); });
 
-    setTab('def');
+    setTab(state.tab);
+    setMode(state.mode);
     render();
 
     return { state: state, render: render, setTab: setTab };

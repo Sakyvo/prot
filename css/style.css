@@ -245,6 +245,20 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   gap: 24px;
 }
 
+.dmg-row[hidden] { display: none; }
+
+.mode-row { display: flex; align-items: center; gap: 24px; }
+
+.mode {
+  padding: 4px 14px;
+  color: var(--ink-soft);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mode:hover { background: var(--wash); }
+
+.mode.is-active { background: var(--ink); color: var(--ground); }
+
 .dmg-label { color: var(--ink-soft); }
 
 .dmg-icon { width: 56px; height: 56px; display: block; object-fit: contain; }
@@ -453,6 +467,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .dmg-controls { gap: 14px; }
 
   .dmg-row { grid-template-columns: 72px max-content 40px; gap: 10px; }
+
+  .mode-row { gap: 12px; }
 
   .dmg-icon { width: 44px; height: 44px; }
 

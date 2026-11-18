@@ -196,7 +196,9 @@
 
     // ================= v6.1: damage panel =================
     var dmgRows = dmgPanel.querySelectorAll('.dmg-row');
-    check('dmg panel has six rows', dmgRows.length === 6);
+    check('dmg panel has six attack rows plus the manual row', dmgRows.length === 7);
+    var weaponInput = dmgPanel.querySelector('.weapon-input');
+    var sharpInput = dmgPanel.querySelector('.sharp-input');
     check('fist row is read-only text "1"',
       dmgPanel.querySelector('[data-field="fist"] .fist-value').textContent.trim() === '1' &&
       !dmgPanel.querySelector('[data-field="fist"] input'));
@@ -227,6 +229,52 @@
       }
     });
     check('dmg labels stay clear of their controls (' + crowded.join(',') + ')', crowded.length === 0);
+
+    // mode toggle: ccl computes, mnl takes the number as the pre-armor damage
+    var modeBtns = dmgPanel.querySelectorAll('.mode');
+    check('two damage modes', modeBtns.length === 2 &&
+      modeBtns[0].dataset.mode === 'ccl' && modeBtns[1].dataset.mode === 'mnl');
+    check('ccl is the default mode', modeBtns[0].classList.contains('is-active'));
+    var manualRow = dmgPanel.querySelector('[data-field="manual"]');
+    var cclRow = dmgPanel.querySelector('[data-field="weapon"]');
+    check('manual row hidden in ccl', !!manualRow && manualRow.hidden === true &&
+      getComputedStyle(manualRow).display === 'none');
+    check('ccl rows shown in ccl', cclRow.hidden === false &&
+      getComputedStyle(cclRow).display !== 'none');
+
+    weaponInput.value = '6';
+    weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
+    sharpInput.value = '5';
+    sharpInput.dispatchEvent(new Event('input', { bubbles: true }));
+    var cclDmg = results.querySelector('.dmg-value').textContent.trim();
+    var cclTaken = dmgVal.textContent.trim();
+
+    modeBtns[1].click();
+    var manualInput = dmgPanel.querySelector('.manual-input');
+    check('manual row shown in mnl', manualRow.hidden === false &&
+      getComputedStyle(manualRow).display !== 'none');
+    check('ccl rows hidden in mnl', cclRow.hidden === true &&
+      getComputedStyle(cclRow).display === 'none');
+    check('results tag follows the mode', results.querySelector('.dmg-tag').textContent.trim() === 'mnl');
+
+    manualInput.value = cclDmg;
+    manualInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('mnl uses the number as given (no weapon/sharpness stacking)',
+      results.querySelector('.dmg-value').textContent.trim() === cclDmg);
+    check('same number through mnl gives the same taken (' + dmgVal.textContent.trim() +
+      ' vs ' + cclTaken + ')', dmgVal.textContent.trim() === cclTaken);
+
+    modeBtns[0].click();
+    check('ccl values survive the round trip',
+      weaponInput.value === '6' && sharpInput.value === '5');
+    check('ccl tag returns', results.querySelector('.dmg-tag').textContent.trim() === 'ccl');
+    modeBtns[1].click();
+    check('manual value survives the round trip', manualInput.value === cclDmg);
+    modeBtns[0].click();
+    weaponInput.value = '';
+    weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
+    sharpInput.value = '0';
+    sharpInput.dispatchEvent(new Event('input', { bubbles: true }));
     tabBtns[0].click();
 
     var critBox = dmgPanel.querySelector('.crit-input');
@@ -251,8 +299,6 @@
     check('strength floor is 0', strInput.value === '0');
 
     // results read the computed damage and follow input changes live
-    var weaponInput = dmgPanel.querySelector('.weapon-input');
-    var sharpInput = dmgPanel.querySelector('.sharp-input');
     ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
       var row = mount.querySelector('[data-slot="' + slot + '"]');
       row.querySelector('.slot-trigger').click();
@@ -493,6 +539,25 @@
     mount.querySelector('[data-slot="helmet"] .prot-input').dispatchEvent(new Event('input', { bubbles: true }));
     levels[2].click();
 
+    app.setTab('dmg');
+    var weapon2 = mount.querySelector('.weapon-input');
+    var sharp2 = mount.querySelector('.sharp-input');
+    var str2 = mount.querySelector('.strength-input');
+    var weak2 = mount.querySelector('.weakness-input');
+    weapon2.value = '6';
+    weapon2.dispatchEvent(new Event('input', { bubbles: true }));
+    sharp2.value = '3';
+    sharp2.dispatchEvent(new Event('input', { bubbles: true }));
+    str2.value = '2';
+    str2.dispatchEvent(new Event('input', { bubbles: true }));
+    weak2.value = '1';
+    weak2.dispatchEvent(new Event('input', { bubbles: true }));
+    mount.querySelector('.crit-input').click();
+    mount.querySelectorAll('.mode')[1].click();
+    var manual2 = mount.querySelector('.manual-input');
+    manual2.value = '9.5';
+    manual2.dispatchEvent(new Event('input', { bubbles: true }));
+
     var stored = window.localStorage.getItem('prot.state');
     check('state written to localStorage', !!stored && /iron/.test(stored) && /"resistance":2/.test(stored));
 
@@ -502,6 +567,15 @@
     check('restored iron helmet', app2.state.slots.helmet.material === 'iron');
     check('restored prot 3', app2.state.slots.helmet.prot === 3);
     check('restored resistance 2', app2.state.resistance === 2);
+    check('restored tab', app2.state.tab === 'dmg' &&
+      mount2.querySelector('.panel[data-panel="dmg"]').hidden === false);
+    check('restored mode', app2.state.mode === 'mnl' &&
+      mount2.querySelectorAll('.mode')[1].classList.contains('is-active'));
+    check('restored attack inputs', app2.state.attack.weapon === '6' &&
+      app2.state.attack.sharpness === 3 && app2.state.attack.strength === 2 &&
+      app2.state.attack.weakness === 1 && app2.state.attack.crit === true);
+    check('restored manual damage', app2.state.manual === '9.5' &&
+      mount2.querySelector('.manual-input').value === '9.5');
     mount2.remove();
 
     // reset: confirm modal, then wipe state + storage
@@ -516,11 +590,35 @@
     check('confirm clears equipment', app.state.slots.helmet.material === 'none' &&
       app.state.slots.chestplate.material === 'none');
     check('confirm clears prot and resistance', app.state.slots.helmet.prot === 0 && app.state.resistance === 0);
+    check('confirm clears attack inputs',
+      app.state.attack.weapon === '' && app.state.attack.sharpness === 0 &&
+      app.state.attack.strength === 0 && app.state.attack.weakness === 0 &&
+      app.state.attack.crit === false && app.state.manual === '');
+    check('confirm returns to the def tab and ccl mode',
+      app.state.tab === 'def' && app.state.mode === 'ccl' &&
+      mount.querySelector('.panel[data-panel="def"]').hidden === false);
     var afterReset = window.localStorage.getItem('prot.state');
+    check('reset leaves no legacy damage field', !!afterReset && afterReset.indexOf('"damage"') === -1);
     check('confirm clears storage (' + afterReset + ')',
       !!afterReset && !/iron/.test(afterReset) && /"prot":0/.test(afterReset) &&
       /"resistance":0/.test(afterReset));
     check('reset modal closed after confirm', !confirmModal.classList.contains('is-open'));
+
+    // a pre-mode blob still loads: its damage becomes the manual value, mode stays ccl
+    window.localStorage.setItem('prot.state', JSON.stringify({
+      slots: { helmet: { material: 'iron', prot: 2 } }, resistance: 1, damage: '12'
+    }));
+    var mount4 = document.createElement('main');
+    document.body.appendChild(mount4);
+    var app4 = ProtUI.mount(mount4);
+    check('legacy damage becomes the manual value', app4.state.manual === '12');
+    check('legacy blob opens in ccl', app4.state.mode === 'ccl');
+    check('legacy blob opens on the def tab', app4.state.tab === 'def');
+    check('legacy manual value reaches the input',
+      mount4.querySelector('.manual-input').value === '12');
+    check('legacy blob keeps its armor', app4.state.slots.helmet.material === 'iron' &&
+      app4.state.slots.helmet.prot === 2);
+    mount4.remove();
 
     // vertical compression
     var controlsGap = parseFloat(getComputedStyle(mount.querySelector('.controls')).rowGap);
