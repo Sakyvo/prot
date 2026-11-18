@@ -33,6 +33,45 @@
   var EPF_RAW_CAP = 25;   // EnchantmentHelper.getEnchantmentModifierDamage: if (m > 25) m = 25
   var EPF_EFFECTIVE_CAP = 20; // EntityLivingBase.applyPotionDamageCalculations: if (k > 20) k = 20
 
+  // ---- attack side (1.8.9, ADR 0003) ----
+  var FIST = 1;                 // EntityPlayer.applyEntityAttributes: attackDamage base = 1.0
+  var ATTACK_DAMAGE_CAP = 2048; // SharedMonsterAttributes.attackDamage range 0..2048
+  var LEVEL_MAX = 32767;        // hypothetical levels, same bound as the protection inputs
+  var STRENGTH_FACTOR = 1.3;    // PotionAttackDamage: 1.3 * (amplifier + 1), operation 2
+  var WEAKNESS_FLAT = 0.5;      // PotionAttackDamage: -0.5 * (amplifier + 1), operation 0
+  var SHARPNESS_PER_LEVEL = 1.25; // EnchantmentDamage.calcDamageByCreature, damage type 0
+  var CRIT_MULTIPLIER = 1.5;    // attackTargetEntityWithCurrentItem: f *= 1.5F
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function numOr(v, fallback) {
+    var n = parseFloat(v);
+    return isFinite(n) && n > 0 ? n : fallback;
+  }
+
+  function lvlOr(v) {
+    var n = parseInt(v, 10);
+    if (!isFinite(n) || n < 0) return 0;
+    return n > LEVEL_MAX ? LEVEL_MAX : n;
+  }
+
+  // base 1 + weapon (operation 0) - 0.5 * weakness (operation 0), then * (1 + 1.3 * strength)
+  // (operation 2), then the attribute range clamp.
+  function attackAttribute(input) {
+    input = input || {};
+    var raw = (FIST + numOr(input.weapon, 0) - WEAKNESS_FLAT * lvlOr(input.weakness)) *
+      (1 + STRENGTH_FACTOR * lvlOr(input.strength));
+    return clamp(raw, 0, ATTACK_DAMAGE_CAP);
+  }
+
+  // crit multiplies the attribute, sharpness is added afterwards and never multiplied.
+  function attackDamage(input) {
+    input = input || {};
+    var base = attackAttribute(input);
+    var crit = input.crit ? CRIT_MULTIPLIER : 1;
+    return base * crit + SHARPNESS_PER_LEVEL * lvlOr(input.sharpness);
+  }
+
   // EnchantmentProtection.calcModifierDamage (protection type 0):
   // floor((6 + level^2) / 3 * 0.75). level 0 -> 0. (port of getEffProtPoints)
   function protectionEpfForLevel(level) {
@@ -110,6 +149,10 @@
     DURABILITY: DURABILITY,
     EPF_RAW_CAP: EPF_RAW_CAP,
     EPF_EFFECTIVE_CAP: EPF_EFFECTIVE_CAP,
+    FIST: FIST,
+    ATTACK_DAMAGE_CAP: ATTACK_DAMAGE_CAP,
+    attackAttribute: attackAttribute,
+    attackDamage: attackDamage,
     protectionEpfForLevel: protectionEpfForLevel,
     protectionModifier: protectionModifier,
     protectionFactor: protectionFactor,

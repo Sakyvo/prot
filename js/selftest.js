@@ -139,6 +139,38 @@
     check('damage 7 @ 80% red -> 1.4', out.result, 1.4);
     check('1.4 damage = 0.7 hearts', out.hearts, 0.7);
 
+    // ---- attack side (1.8.9 attribute semantics, ADR 0003) ----
+    // expected values are facts from the decompile, not recomputed here.
+    check('fist: bare hand attribute is 1', Calc.attackAttribute({}), 1);
+    check('fist: bare hand damage is 1', Calc.attackDamage({}), 1);
+
+    // wooden shovel: ItemSpade passes 1.0 + ToolMaterial.WOOD 0.0 = +1 on the 1.0 base
+    check('wooden shovel attribute = 2', Calc.attackAttribute({ weapon: 1 }), 2);
+    check('wooden shovel: four hits clear 8 hp', 4 * Calc.attackDamage({ weapon: 1 }), 8);
+
+    // strength is operation 2 on the attribute: (1+6) * (1 + 1.3 * amp)
+    check('strength I multiplies by 2.3', Calc.attackAttribute({ weapon: 6, strength: 1 }), 16.1);
+    check('strength II multiplies by 3.6', Calc.attackAttribute({ weapon: 6, strength: 2 }), 25.2);
+    check('strength III multiplies by 4.9', Calc.attackAttribute({ strength: 3 }), 4.9);
+
+    // weakness is a flat -0.5 per level, applied before the strength multiplier
+    check('weakness I shaves 0.5', Calc.attackAttribute({ weapon: 6, weakness: 1 }), 6.5);
+    check('weakness clamps the attribute at 0', Calc.attackAttribute({ weakness: 4 }), 0);
+    check('weakness IV keeps sharpness damage', Calc.attackDamage({ sharpness: 5, weakness: 4 }), 6.25);
+
+    // sharpness: 1.25 per level, added after the crit multiplier
+    check('diamond sword sharp V + strength II = 31.45', Calc.attackDamage({ weapon: 6, sharpness: 5, strength: 2 }), 31.45);
+    check('crit multiplies the attribute only', Calc.attackDamage({ weapon: 6, sharpness: 5, strength: 2, crit: true }), 44.05);
+
+    // the 2048 cap belongs to the attribute, not to the final damage
+    check('attribute caps at 2048', Calc.attackAttribute({ weapon: 100, strength: 100 }), 2048);
+    check('sharpness still adds past the cap', Calc.attackDamage({ weapon: 100, strength: 100, sharpness: 5 }), 2048 + 6.25);
+
+    // taken damage: 8% passes through full diamond + protection IV
+    var diaProt4 = Calc.compute(state(dia4(4)));
+    check('31.45 through 8% = 2.516', Calc.applyDamage(Calc.attackDamage({ weapon: 6, sharpness: 5, strength: 2 }), diaProt4).result, 2.516);
+    check('44.05 crit through 8% = 3.524', Calc.applyDamage(Calc.attackDamage({ weapon: 6, sharpness: 5, strength: 2, crit: true }), diaProt4).result, 3.524);
+
     log(failures === 0 ? 'all green' : failures + ' failing');
     return failures;
   };
