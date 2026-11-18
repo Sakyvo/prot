@@ -27,6 +27,7 @@ tools/test.sh        # 全部测试；退出码非 0 即失败
 - 文案全英文小写；配色只用 `css/style.css` 的语义变量——淡蓝底 + 近黑线框 + 四色（`--enchanted` 紫 / `--durability` 浅绿 / `--reduction` 深绿 / `--taken` 深红），不另引入其他饱和色。
 - 字体只用本地 assets 中的 Minecraft AE Bold（源字型 `K:\PvP\MinecraftAE-Bold.ttf`，用 `tools/subset-font.sh` 重新生成子集）；贴图只从站点 assets 读取，运行时不引用资源包目录。
 - `!!!!Eum3 Blue Revamp/` 是素材源，不入选址资源；站点只用资产副本。
+- 每个 task 收尾后运行 `tools/test.sh` 全绿，再 `git push origin main`；本地不得积压未推送提交（GitHub Pages 直接发布）。
 
 ## 按需读取索引
 
