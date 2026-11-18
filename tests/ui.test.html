@@ -77,11 +77,14 @@
     check('taken stat label', takenStat.querySelector('.stat-label').textContent.trim() === 'taken');
     check('reduction starts 0.00%', redStat.querySelector('.stat-value').textContent.trim() === '0.00%');
 
-    var dmg = results.querySelector('.damage-input');
+    var damageRowEl = results.querySelector('.damage-row');
     var dmgVal = results.querySelector('.damage-value');
     var heartVal = results.querySelector('.heart-value');
-    check('damage defaults 0.00', dmgVal.textContent.trim() === '0.00');
-    check('hearts default 0.00', heartVal.textContent.trim() === '0.00');
+    check('bare hand dmg is 1.00', results.querySelector('.dmg-value').textContent.trim() === '1.00');
+    check('bare hand through 0% -> 1.00', dmgVal.textContent.trim() === '1.00');
+    check('1.00 taken -> 0.50 hearts', heartVal.textContent.trim() === '0.50');
+    check('results carry no editable control', results.querySelectorAll('input, select, textarea').length === 0);
+    check('results carry the ccl tag', results.querySelector('.dmg-tag').textContent.trim() === 'ccl');
     check('heart icon present',
       /assets\/textures\/heart\.png$/.test(results.querySelector('.heart-icon').src));
 
@@ -92,10 +95,8 @@
     });
     check('full diamond reduction 80.00%',
       redStat.querySelector('.stat-value').textContent.trim() === '80.00%');
-    dmg.value = '10';
-    dmg.dispatchEvent(new Event('input', { bubbles: true }));
-    check('damage 10 @ 80% -> 2.00', dmgVal.textContent.trim() === '2.00');
-    check('2.00 damage -> 1.00 hearts', heartVal.textContent.trim() === '1.00');
+    check('bare hand through 80% -> 0.20', dmgVal.textContent.trim() === '0.20');
+    check('0.20 taken -> 0.10 hearts', heartVal.textContent.trim() === '0.10');
 
     var helmProt = mount.querySelector('[data-slot="helmet"] .prot-input');
     helmProt.value = '21';
@@ -192,6 +193,101 @@
         tabBtns[1].getBoundingClientRect().top, 2));
       check('desktop hides the mobile bar', getComputedStyle(bar).display === 'none');
     }
+
+    // ================= v6.1: damage panel =================
+    var dmgRows = dmgPanel.querySelectorAll('.dmg-row');
+    check('dmg panel has six rows', dmgRows.length === 6);
+    check('fist row is read-only text "1"',
+      dmgPanel.querySelector('[data-field="fist"] .fist-value').textContent.trim() === '1' &&
+      !dmgPanel.querySelector('[data-field="fist"] input'));
+    check('weapon input exists', !!dmgPanel.querySelector('.weapon-input'));
+    check('sharpness stepper exists', !!dmgPanel.querySelector('.sharp-input') &&
+      !!dmgPanel.querySelector('.sharp-dec') && !!dmgPanel.querySelector('.sharp-inc'));
+
+    var strIcon = dmgPanel.querySelector('.strength-icon');
+    var weakIcon = dmgPanel.querySelector('.weakness-icon');
+    check('strength icon from site assets',
+      !!strIcon && /assets\/textures\/effect_strength\.png$/.test(strIcon.src));
+    check('weakness icon from site assets',
+      !!weakIcon && /assets\/textures\/effect_weakness\.png$/.test(weakIcon.src));
+    check('strength icon is named', !!strIcon && strIcon.title === 'strength');
+    check('weakness icon is named', !!weakIcon && weakIcon.title === 'weakness');
+
+    // geometry only exists while the panel is on screen
+    tabBtns[1].click();
+    var crowded = [];
+    dmgPanel.querySelectorAll('.dmg-row').forEach(function (row) {
+      var label = row.firstElementChild;
+      var control = label && label.nextElementSibling;
+      if (label.tagName !== 'IMG' && label.scrollWidth > label.clientWidth + 0.5) {
+        crowded.push(row.dataset.field + ':text');
+      }
+      if (control && label.getBoundingClientRect().right > control.getBoundingClientRect().left + 0.5) {
+        crowded.push(row.dataset.field + ':box');
+      }
+    });
+    check('dmg labels stay clear of their controls (' + crowded.join(',') + ')', crowded.length === 0);
+    tabBtns[0].click();
+
+    var critBox = dmgPanel.querySelector('.crit-input');
+    check('crit is a checkbox', !!critBox && critBox.type === 'checkbox');
+    check('crit unchecked by default', critBox.checked === false);
+
+    // steppers leave the 0..5 resistance range behind
+    var strInput = dmgPanel.querySelector('.strength-input');
+    var strInc = dmgPanel.querySelector('.strength-inc');
+    var strDec = dmgPanel.querySelector('.strength-dec');
+    for (var step = 0; step < 6; step++) strInc.click();
+    check('strength steps past 5 (' + strInput.value + ')', strInput.value === '6');
+    strInput.value = '32767';
+    strInput.dispatchEvent(new Event('input', { bubbles: true }));
+    strInc.click();
+    check('strength capped at 32767', strInput.value === '32767');
+    strDec.click();
+    check('strength steps down to 32766', strInput.value === '32766');
+    strInput.value = '0';
+    strInput.dispatchEvent(new Event('input', { bubbles: true }));
+    strDec.click();
+    check('strength floor is 0', strInput.value === '0');
+
+    // results read the computed damage and follow input changes live
+    var weaponInput = dmgPanel.querySelector('.weapon-input');
+    var sharpInput = dmgPanel.querySelector('.sharp-input');
+    ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
+      var row = mount.querySelector('[data-slot="' + slot + '"]');
+      row.querySelector('.slot-trigger').click();
+      row.querySelector('.mat-option[data-material="diamond"]').click();
+      var pi = row.querySelector('.prot-input');
+      pi.value = '0';
+      pi.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    weaponInput.value = '6';
+    weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('diamond sword dmg 7.00 while the dmg tab is closed',
+      results.querySelector('.dmg-value').textContent.trim() === '7.00');
+    check('7.00 through 80% -> 1.40', dmgVal.textContent.trim() === '1.40');
+    check('1.40 taken -> 0.70 hearts', heartVal.textContent.trim() === '0.70');
+
+    sharpInput.value = '5';
+    sharpInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('sharpness V adds 6.25', results.querySelector('.dmg-value').textContent.trim() === '13.25');
+    critBox.click();
+    check('crit multiplies the attribute only',
+      results.querySelector('.dmg-value').textContent.trim() === '16.75');
+    critBox.click();
+    sharpInput.value = '0';
+    sharpInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // clearing the inputs falls back to the bare hand
+    weaponInput.value = '';
+    weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('empty weapon falls back to the bare hand',
+      results.querySelector('.dmg-value').textContent.trim() === '1.00');
+    ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
+      var row = mount.querySelector('[data-slot="' + slot + '"]');
+      row.querySelector('.slot-trigger').click();
+      row.querySelector('.mat-option[data-material="none"]').click();
+    });
 
     // ================= v3: centered frame =================
     var mainRect = mount.getBoundingClientRect();
@@ -336,8 +432,8 @@
       bootPop.querySelectorAll('.mat-option').length === 6);
     if (mobile) {
       check('boots popover clears the damage label by >= 20px (' +
-        (dmg.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom).toFixed(0) + ')',
-        dmg.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom >= 20);
+        (damageRowEl.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom).toFixed(0) + ')',
+        damageRowEl.getBoundingClientRect().top - bootPop.getBoundingClientRect().bottom >= 20);
     } else {
       check('desktop boots popover also fits armor height (' +
         bootPop.getBoundingClientRect().height.toFixed(0) + ')',
@@ -396,8 +492,6 @@
     mount.querySelector('[data-slot="helmet"] .prot-input').value = '3';
     mount.querySelector('[data-slot="helmet"] .prot-input').dispatchEvent(new Event('input', { bubbles: true }));
     levels[2].click();
-    dmg.value = '12';
-    dmg.dispatchEvent(new Event('input', { bubbles: true }));
 
     var stored = window.localStorage.getItem('prot.state');
     check('state written to localStorage', !!stored && /iron/.test(stored) && /"resistance":2/.test(stored));
@@ -408,7 +502,6 @@
     check('restored iron helmet', app2.state.slots.helmet.material === 'iron');
     check('restored prot 3', app2.state.slots.helmet.prot === 3);
     check('restored resistance 2', app2.state.resistance === 2);
-    check('restored damage input', mount2.querySelector('.damage-input').value === '12');
     mount2.remove();
 
     // reset: confirm modal, then wipe state + storage
@@ -423,7 +516,6 @@
     check('confirm clears equipment', app.state.slots.helmet.material === 'none' &&
       app.state.slots.chestplate.material === 'none');
     check('confirm clears prot and resistance', app.state.slots.helmet.prot === 0 && app.state.resistance === 0);
-    check('confirm clears damage input', mount.querySelector('.damage-input').value === '');
     var afterReset = window.localStorage.getItem('prot.state');
     check('confirm clears storage (' + afterReset + ')',
       !!afterReset && !/iron/.test(afterReset) && /"prot":0/.test(afterReset) &&

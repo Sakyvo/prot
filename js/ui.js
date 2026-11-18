@@ -28,7 +28,12 @@
   }
 
   function defaultState() {
-    var state = { slots: {}, resistance: 0, damage: '' };
+    var state = {
+      slots: {},
+      resistance: 0,
+      damage: '',
+      attack: { weapon: '', sharpness: 0, strength: 0, weakness: 0, crit: false }
+    };
     Calc.SLOTS.forEach(function (s) { state.slots[s] = { material: 'none', prot: 0 }; });
     return state;
   }
@@ -49,6 +54,15 @@
       var res = parseInt(saved.resistance, 10);
       if (!isNaN(res) && res >= 0 && res <= 5) state.resistance = res;
       if (typeof saved.damage === 'string') state.damage = saved.damage;
+      var savedAttack = saved.attack || {};
+      if (typeof savedAttack.weapon === 'string' || typeof savedAttack.weapon === 'number') {
+        state.attack.weapon = savedAttack.weapon;
+      }
+      ['sharpness', 'strength', 'weakness'].forEach(function (key) {
+        var lvl = parseInt(savedAttack[key], 10);
+        if (!isNaN(lvl) && lvl >= 0 && lvl <= 32767) state.attack[key] = lvl;
+      });
+      if (typeof savedAttack.crit === 'boolean') state.attack.crit = savedAttack.crit;
     } catch (e) { /* corrupt storage: fall back to defaults */ }
     return state;
   }
@@ -84,7 +98,92 @@
     dmgPanel.hidden = true;
     panelEls.def = defPanel;
     panelEls.dmg = dmgPanel;
-    dmgPanel.appendChild(el('p', 'panel-placeholder', 'damage'));
+    var dmgControls = el('section', 'dmg-controls');
+
+    function dmgRow(field, label, iconSrc) {
+      var row = el('section', 'dmg-row');
+      row.dataset.field = field;
+      if (iconSrc) {
+        var icon = img(iconSrc, label);
+        icon.className = 'dmg-icon ' + field + '-icon';
+        icon.title = label;
+        row.appendChild(icon);
+      } else {
+        row.appendChild(el('span', 'dmg-label', label));
+      }
+      return row;
+    }
+
+    // fist: the player's own 1 hp, shown but never edited
+    var fistRow = dmgRow('fist', 'fist');
+    fistRow.appendChild(el('span', 'fist-value', String(Calc.FIST)));
+    dmgControls.appendChild(fistRow);
+
+    // weapon: unenchanted bonus, decimals allowed
+    var weaponRow = dmgRow('weapon', 'weapon');
+    var weaponInput = el('input', 'prot-input weapon-input');
+    weaponInput.type = 'number';
+    weaponInput.min = '0';
+    weaponInput.step = 'any';
+    weaponInput.placeholder = '0';
+    weaponInput.value = state.attack.weapon === '' ? '' : String(state.attack.weapon);
+    weaponRow.appendChild(weaponInput);
+    dmgControls.appendChild(weaponRow);
+
+    // levels: sharpness / strength / weakness share one stepper shape
+    var levelInputs = {};
+    function levelRow(field, label, iconSrc, cls) {
+      cls = cls || field;
+      var row = dmgRow(field, label, iconSrc);
+      var stepper = el('div', 'prot-stepper dmg-stepper');
+      var dec = el('button', 'prot-dec ' + cls + '-dec', '-');
+      var input = el('input', 'prot-input ' + cls + '-input');
+      var inc = el('button', 'prot-inc ' + cls + '-inc', '+');
+      dec.type = inc.type = 'button';
+      input.type = 'number';
+      input.min = '0';
+      input.max = '32767';
+      input.value = String(state.attack[field]);
+      function setLevel(v) {
+        v = parseInt(v, 10);
+        if (isNaN(v) || v < 0) v = 0;
+        if (v > 32767) v = 32767;
+        state.attack[field] = v;
+        input.value = String(v);
+        render();
+      }
+      dec.addEventListener('click', function () { setLevel(state.attack[field] - 1); });
+      inc.addEventListener('click', function () { setLevel(state.attack[field] + 1); });
+      input.addEventListener('input', function () { setLevel(input.value); });
+      stepper.appendChild(dec);
+      stepper.appendChild(input);
+      stepper.appendChild(inc);
+      row.appendChild(stepper);
+      levelInputs[field] = input;
+      dmgControls.appendChild(row);
+    }
+    levelRow('sharpness', 'sharp', null, 'sharp');
+    levelRow('strength', 'strength', TEX + 'effect_strength.png');
+    levelRow('weakness', 'weakness', TEX + 'effect_weakness.png');
+
+    // crit: one explicit checkbox, no jump inference
+    var critRow = dmgRow('crit', 'crit');
+    var critBox = el('input', 'crit-input');
+    critBox.type = 'checkbox';
+    critBox.checked = !!state.attack.crit;
+    critBox.addEventListener('change', function () {
+      state.attack.crit = !!critBox.checked;
+      render();
+    });
+    critRow.appendChild(critBox);
+    dmgControls.appendChild(critRow);
+
+    weaponInput.addEventListener('input', function () {
+      state.attack.weapon = weaponInput.value;
+      render();
+    });
+
+    dmgPanel.appendChild(dmgControls);
 
     // ---- def panel: armor + resistance ----
     var controls = el('section', 'controls');
@@ -245,13 +344,11 @@
     capped.hidden = true;
 
     var damageRow = el('div', 'damage-row');
-    damageRow.appendChild(el('span', 'damage-label', 'damage'));
-    var dmgInput = el('input', 'damage-input');
-    dmgInput.type = 'number';
-    dmgInput.min = '0';
-    dmgInput.step = 'any';
-    dmgInput.value = state.damage || '';
-    dmgInput.placeholder = '0.00';
+    damageRow.appendChild(el('span', 'damage-label', 'dmg'));
+    var dmgValue = el('span', 'dmg-value', '1.00');
+    var dmgTag = el('span', 'dmg-tag', 'ccl');
+    damageRow.appendChild(dmgValue);
+    damageRow.appendChild(dmgTag);
     var dmgOut = el('div', 'damage-out');
     var dmgVal = el('span', 'damage-value', '0.00');
     var heartVal = el('span', 'heart-value', '0.00');
@@ -262,7 +359,6 @@
     dmgOut.appendChild(equals);
     dmgOut.appendChild(heartVal);
     dmgOut.appendChild(heartIcon);
-    damageRow.appendChild(dmgInput);
     damageRow.appendChild(dmgOut);
 
     results.appendChild(statRed);
@@ -323,16 +419,11 @@
 
       capped.hidden = !r.epfCapped;
 
-      var dmg = parseFloat(dmgInput.value);
-      if (isNaN(dmg) || dmg < 0) dmg = 0;
-      dmgVal.textContent = num(dmg);
-      if (dmg === 0) {
-        heartVal.textContent = num(0);
-      } else {
-        var out = Calc.applyDamage(dmg, r);
-        dmgVal.textContent = num(out.result);
-        heartVal.textContent = num(out.hearts);
-      }
+      var dmg = Calc.attackDamage(state.attack);
+      dmgValue.textContent = num(dmg);
+      var out = Calc.applyDamage(dmg, r);
+      dmgVal.textContent = num(out.result);
+      heartVal.textContent = num(out.hearts);
 
       Calc.SLOTS.forEach(function (slot) {
         durabilityEls[slot].textContent = String(state.slots[slot].material === 'none'
@@ -340,13 +431,10 @@
           : Calc.durabilityOf(slot, state.slots[slot].material));
       });
 
-      state.damage = dmgInput.value;
       try {
         if (root.localStorage) root.localStorage.setItem(STORE_KEY, JSON.stringify(state));
       } catch (e) { /* private mode: run without persistence */ }
     }
-
-    dmgInput.addEventListener('input', render);
 
     function closeReset() { confirmModal.classList.remove('is-open'); }
 
@@ -363,8 +451,13 @@
       });
       state.resistance = 0;
       levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === 0); });
-      dmgInput.value = '';
-      state.damage = '';
+      state.attack = { weapon: '', sharpness: 0, strength: 0, weakness: 0, crit: false };
+      weaponInput.value = '';
+      levelInputs.sharpness.value = '0';
+      levelInputs.strength.value = '0';
+      levelInputs.weakness.value = '0';
+      critBox.checked = false;
+      dmgTag.textContent = 'ccl';
       try { if (root.localStorage) root.localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
       closeReset();
       render();

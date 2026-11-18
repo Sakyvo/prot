@@ -234,6 +234,34 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .res-level.is-active { background: var(--ink); color: var(--ground); }
 
+/* ---------- damage panel ---------- */
+
+.dmg-controls { display: grid; gap: 22px; }
+
+.dmg-row {
+  display: grid;
+  grid-template-columns: 72px max-content 64px;
+  align-items: center;
+  gap: 24px;
+}
+
+.dmg-label { color: var(--ink-soft); }
+
+.dmg-icon { width: 56px; height: 56px; display: block; object-fit: contain; }
+
+.fist-value {
+  width: 78px;
+  padding: 4px 6px;
+  text-align: center;
+  color: var(--ink-soft);
+  background: var(--wash);
+  font-variant-numeric: tabular-nums;
+}
+
+.weapon-input { width: 120px; padding-left: 10px; text-align: left; }
+
+.crit-input { width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+
 /* ---------- results ---------- */
 
 .results {
@@ -292,9 +320,19 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .damage-row {
   display: grid;
-  grid-template-columns: max-content 180px max-content;
-  align-items: center;
-  column-gap: 18px;
+  grid-template-columns: max-content max-content max-content max-content;
+  align-items: baseline;
+  column-gap: 16px;
+}
+
+.dmg-value { font-size: 26px; font-variant-numeric: tabular-nums; }
+
+.dmg-tag {
+  align-self: center;
+  padding: 1px 7px;
+  color: var(--ink-soft);
+  background: var(--wash);
+  font-size: 13px;
 }
 
 .damage-label { color: var(--ink-soft); }
@@ -410,7 +448,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .results .stat-value { font-size: 22px; }
 
-  .damage-row { grid-template-columns: max-content minmax(0, 1fr) max-content; column-gap: 12px; }
+  .damage-row { grid-template-columns: max-content max-content max-content; column-gap: 12px; row-gap: 6px; }
+
+  .dmg-controls { gap: 14px; }
+
+  .dmg-row { grid-template-columns: 72px max-content 40px; gap: 10px; }
+
+  .dmg-icon { width: 44px; height: 44px; }
+
+  .weapon-input { width: 96px; }
 
   .damage-input { padding: 6px 10px; }
 
