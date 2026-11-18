@@ -1,14 +1,32 @@
-## 项目定位
+# prot — 伤害/减伤计算器（Minecraft 1.8.9）
 
-prot：Minecraft 1.8.9 伤害 / 减伤计算器（武器 + 锋利 + 力量/虚弱 → 攻击伤害；盔甲 + 保护 + 抗性 → 减伤/承伤比率），纯静态单页，托管 GitHub Pages（仓库 `Sakyvo/prot`，域名 `prot.loc.cc`）。领域术语与数值事实源见 `CONTEXT.md`。
+纯静态单页：`index.html` + 原生 js/css，无构建工具。托管 GitHub Pages（`Sakyvo/prot`，`prot.loc.cc`）。领域术语与数值事实源见 `CONTEXT.md`。
 
-## 常驻法则
+## 结构
 
-- 纯静态零构建：`index.html` + 原生 js/css，不引入构建工具与框架。
-- 公式与护甲/耐久/攻击数值、伤害输入口径（`weapon` = 未附魔加成，不是 tooltip 总值）一律以 `CONTEXT.md` 为唯一事实源，改数值先改 `CONTEXT.md`。
-- 全英文、全小写文案；配色只用 `css/style.css` 的语义变量——淡蓝底 + 近黑线框 + 四色（`--enchanted` 紫 / `--durability` 浅绿 / `--reduction` 深绿 / `--taken` 深红），不另引入其他饱和色。
-- 字体只用本地 assets 中的 Minecraft AE Bold(源字型 `K:\PvP\MinecraftAE-Bold.ttf`,用 `tools/subset-font.sh` 重新生成子集);贴图只从站点 assets 读取,运行时不引用资源包目录。
-- `!!!!Eum3 Blue Revamp/` 是素材源不入选址资源；站点只用资产副本。
+- `js/calc.js` — 计算内核（UMD，浏览器 + node 双端）。护甲/耐久表、EPF 期望值、`compute()`、`applyDamage()`。
+- `js/selftest.js` — 内核断言用例（node 与浏览器共用），期望值来自 `CONTEXT.md` / 1.8.9 反编译，绝不由实现反推。
+- `js/ui.js` — DOM 挂载，无框架。
+- `css/style.css` — 语义配色变量 + 布局。
+- `tests/ui.test.html` — 浏览器 DOM 断言（桌面 / 移动两套）。
+- `tools/test.sh` — 测试入口：node 内核断言 + headless Chrome（1200×900 / 420×760）两断点跑 `tests/ui.test.html`。
+
+## 常用命令
+
+```
+tools/test.sh        # 全部测试；退出码非 0 即失败
+```
+
+依赖：node + Chrome（headless，无窗口、不干扰桌面）。`CHROME` 环境变量可覆盖浏览器路径。
+
+## 约定
+
+- 数值与公式的唯一事实源是 `CONTEXT.md`；改数值先改它。伤害输入口径同样以它为准：`weapon` = 未附魔加成，不是 tooltip 总值。
+- 测试只走公开缝：`ProtCalc` 纯函数（`js/selftest.js`）与 `ProtUI.mount()` 产出的 DOM（`tests/ui.test.html`）。
+- 单页无构建，改动后不需要打包；`index.html` 直接加载源码。勿引入打包器、框架或 `node_modules`。
+- 文案全英文小写；配色只用 `css/style.css` 的语义变量——淡蓝底 + 近黑线框 + 四色（`--enchanted` 紫 / `--durability` 浅绿 / `--reduction` 深绿 / `--taken` 深红），不另引入其他饱和色。
+- 字体只用本地 assets 中的 Minecraft AE Bold（源字型 `K:\PvP\MinecraftAE-Bold.ttf`，用 `tools/subset-font.sh` 重新生成子集）；贴图只从站点 assets 读取，运行时不引用资源包目录。
+- `!!!!Eum3 Blue Revamp/` 是素材源，不入选址资源；站点只用资产副本。
 
 ## 按需读取索引
 

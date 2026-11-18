@@ -7,7 +7,8 @@
 <script src="js/ui.js"></script>
 <script>
 (function () {
-  function log(s) { console.log('[uitest] ' + s); }
+  var lines = [];
+  function log(s) { lines.push(s); console.log('[uitest] ' + s); }
   var failures = 0;
   function check(name, cond) { if (!cond) failures++; log((cond ? 'pass' : 'FAIL') + '  ' + name); }
   var mobile = matchMedia('(max-width: 760px)').matches;
@@ -125,58 +126,101 @@
     check('badge wording avoids protection/resistance',
       badge.textContent.indexOf('protection') === -1 && badge.textContent.indexOf('resistance') === -1);
 
-    // modal plumbing
-    var modal = mount.querySelector('.detail-modal');
-    check('detail modal exists', !!modal);
-    check('modal has svg close', !!modal.querySelector('svg.modal-close'));
-    check('modal starts closed', !modal.classList.contains('is-open'));
-    check('modal has three lines', modal.querySelectorAll('.line').length === 3);
+    // the detail modal is gone: the full results block always sits on the page
+    check('no detail modal', !mount.querySelector('.detail-modal'));
+
+    // ================= v6: tabs + full-width results =================
+    var tabs = mount.querySelector('.tabs');
+    check('tab bar exists', !!tabs);
+    var tabBtns = tabs ? tabs.querySelectorAll('.tab') : [];
+    check('two tabs', tabBtns.length === 2);
+    check('tab labels are def / dmg',
+      !!tabBtns[1] && tabBtns[0].textContent.trim() === 'def' && tabBtns[1].textContent.trim() === 'dmg');
+    var defPanel = mount.querySelector('.panel[data-panel="def"]');
+    var dmgPanel = mount.querySelector('.panel[data-panel="dmg"]');
+    check('two panels', !!defPanel && !!dmgPanel);
+    check('def tab active by default', tabBtns[0].classList.contains('is-active'));
+    check('def panel shown, dmg panel hidden', defPanel.hidden === false && dmgPanel.hidden === true);
+    tabBtns[1].click();
+    check('dmg tab switches panels', dmgPanel.hidden === false && defPanel.hidden === true);
+    check('dmg tab takes the active class',
+      tabBtns[1].classList.contains('is-active') && !tabBtns[0].classList.contains('is-active'));
+    tabBtns[0].click();
+    check('def tab switches back', defPanel.hidden === false && dmgPanel.hidden === true);
+
+    var divider = mount.querySelector('.divider');
+    check('divider exists', !!divider);
+    check('divider sits below the input panel',
+      divider.getBoundingClientRect().top >= defPanel.getBoundingClientRect().bottom - 1);
+    check('divider sits above the results',
+      divider.getBoundingClientRect().top <= results.getBoundingClientRect().top + 1);
+    check('divider spans the content frame (' + divider.getBoundingClientRect().width.toFixed(0) +
+      ' vs ' + results.getBoundingClientRect().width.toFixed(0) + ')',
+      near(divider.getBoundingClientRect().width, results.getBoundingClientRect().width, 2) &&
+      near(results.getBoundingClientRect().width, defPanel.getBoundingClientRect().width, 2));
+    check('divider is 2px black',
+      getComputedStyle(divider).borderTopColor === 'rgb(16, 20, 24)');
+    check('results has no left divider', parseFloat(getComputedStyle(results).borderLeftWidth) === 0);
+    check('results wider than a single control row (' + results.getBoundingClientRect().width.toFixed(0) +
+      ' vs ' + mount.querySelector('.slot-row').getBoundingClientRect().width.toFixed(0) + ')',
+      near(results.getBoundingClientRect().width,
+        mount.querySelector('.slot-row').getBoundingClientRect().width, 2));
+
+    var bar = mount.querySelector('.mobile-bar');
     if (mobile) {
-      redStat.querySelector('.stat-label').click();
-      check('label opens modal on mobile', modal.classList.contains('is-open'));
-      modal.querySelector('svg.modal-close').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      check('svg close works', !modal.classList.contains('is-open'));
-      redStat.querySelector('.stat-label').click();
-      modal.querySelector('.modal-backdrop').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      check('backdrop closes', !modal.classList.contains('is-open'));
+      check('tabs stack vertically (' + tabs.getBoundingClientRect().height.toFixed(0) + 'px)',
+        tabs.getBoundingClientRect().height > tabBtns[0].getBoundingClientRect().height * 1.5);
+      check('mobile bar is fixed', getComputedStyle(bar).position === 'fixed');
+      check('mobile bar pinned to viewport bottom (' + bar.getBoundingClientRect().bottom.toFixed(0) +
+        ' vs ' + document.documentElement.clientHeight + ')',
+        near(bar.getBoundingClientRect().bottom, document.documentElement.clientHeight, 2));
+      check('mobile results show reduction/taken',
+        getComputedStyle(results.querySelector('.stat.reduction')).display !== 'none' &&
+        getComputedStyle(results.querySelector('.stat.taken')).display !== 'none');
+      check('mobile results show breakdown',
+        getComputedStyle(results.querySelector('.breakdown')).display !== 'none');
+      window.scrollTo(0, 400);
+      check('mobile bar still pinned after scrolling (' + bar.getBoundingClientRect().bottom.toFixed(0) +
+        ' vs ' + document.documentElement.clientHeight + ')',
+        near(bar.getBoundingClientRect().bottom, document.documentElement.clientHeight, 2));
+      window.scrollTo(0, 0);
+      check('page leaves room for the fixed bar',
+        parseFloat(getComputedStyle(document.body).paddingBottom) > 0 ||
+        parseFloat(getComputedStyle(mount).paddingBottom) >= bar.getBoundingClientRect().height);
     } else {
-      redStat.querySelector('.stat-label').click();
-      check('label does not open modal on desktop', !modal.classList.contains('is-open'));
+      check('tabs sit in one row', near(tabBtns[0].getBoundingClientRect().top,
+        tabBtns[1].getBoundingClientRect().top, 2));
+      check('desktop hides the mobile bar', getComputedStyle(bar).display === 'none');
     }
 
-    // ================= v3: centered frame + divider =================
+    // ================= v3: centered frame =================
     var mainRect = mount.getBoundingClientRect();
     var leftGap = mainRect.left;
-    var rightGap = window.innerWidth - mainRect.right;
+    var rightGap = document.documentElement.clientWidth - mainRect.right;
     check('desktop content centered (left ' + leftGap.toFixed(0) + ' / right ' + rightGap.toFixed(0) + ')',
       mobile || (leftGap > 8 && near(leftGap, rightGap, 3)));
-
-    var resCs = getComputedStyle(results);
-    check('results has 2px left divider (desktop only, mobile ' + mobile + ')',
-      mobile ? parseFloat(resCs.borderLeftWidth) === 0 : parseFloat(resCs.borderLeftWidth) === 2);
-    check('divider is black', mobile || resCs.borderLeftColor === 'rgb(16, 20, 24)');
+    check('no horizontal overflow (' + document.documentElement.scrollWidth + ' vs ' +
+      document.documentElement.clientWidth + ')',
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
     var oddBorders = [];
     mount.querySelectorAll('*').forEach(function (n) {
-      if (n === results || n.classList.contains('mobile-bar') ||
-          n.closest('.detail-modal')) return;
+      if (n === results || n.classList.contains('divider') || n.classList.contains('mobile-bar') ||
+          n.closest('.confirm-modal')) return;
       var cs = getComputedStyle(n);
       if (['borderTopWidth', 'borderRightWidth', 'borderBottomWidth'].some(function (k) {
         return parseFloat(cs[k]) > 0;
       }) || parseFloat(cs.borderLeftWidth) > 0) oddBorders.push(n.className || n.tagName);
     });
-    check('no other borders (found: ' + oddBorders.slice(0, 4).join('|') + ')', oddBorders.length === 0);
-    check('divider stops at content bottom (results ' + results.getBoundingClientRect().height.toFixed(0) +
-      ' < main ' + mainRect.height.toFixed(0) + ')',
-      results.getBoundingClientRect().height < mainRect.height - 40);
+    check('no stray borders (found: ' + oddBorders.slice(0, 4).join('|') + ')', oddBorders.length === 0);
 
     // ================= v3: alignment =================
     var rv = redStat.querySelector('.stat-value').getBoundingClientRect();
     var tv = takenStat.querySelector('.stat-value').getBoundingClientRect();
-    var rl = redStat.querySelector('.stat-label').getBoundingClientRect();
-    var tl = takenStat.querySelector('.stat-label').getBoundingClientRect();
-    check('reduction value right-aligned with taken value', near(rv.right, tv.right));
-    check('reduction label x == taken label x', near(rl.left, tl.left));
+    check('reduction and taken sit side by side (' + rv.right.toFixed(0) + ' < ' + tv.left.toFixed(0) + ')',
+      rv.right <= tv.left);
+    check('reduction and taken share a row (' + rv.top.toFixed(0) + ' vs ' + tv.top.toFixed(0) + ')',
+      near(rv.top, tv.top, 2));
 
     var lineVals = results.querySelectorAll('.breakdown .line-value');
     check('three breakdown values', lineVals.length === 3);
@@ -326,17 +370,15 @@
     check('equals sign between damage and hearts', !!equals && equals.textContent.trim() === '=');
 
     var gapLeft = results.getBoundingClientRect().left - mount.querySelector('.controls').getBoundingClientRect().right;
-    var gapRight = parseFloat(resCs.paddingLeft);
-    check('divider neighbours equal (' + gapLeft.toFixed(0) + ' vs ' + gapRight.toFixed(0) + ')',
-      mobile || near(gapLeft, gapRight, 2));
+    check('results line up with the input column (' + gapLeft.toFixed(0) + ')', mobile || gapLeft <= 0);
 
     // transitions sped up
     var popTransition = getComputedStyle(pop).transitionDuration;
     check('popover transition <= 100ms (' + popTransition + ')',
       parseFloat(popTransition) <= 0.1);
-    var modalTransition = getComputedStyle(modal).transitionDuration;
-    check('modal transition <= 160ms (' + modalTransition + ')',
-      parseFloat(modalTransition) <= 0.16);
+    var confirmTransition = getComputedStyle(mount.querySelector('.confirm-modal')).transitionDuration;
+    check('confirm modal transition <= 160ms (' + confirmTransition + ')',
+      parseFloat(confirmTransition) <= 0.16);
 
     // reset control at the right end of the resistance row
     var resetBtn = resRow.querySelector('.reset-button');
@@ -371,7 +413,7 @@
 
     // reset: confirm modal, then wipe state + storage
     resetBtn.click();
-    var confirmModal = mount.querySelector('.reset-modal');
+    var confirmModal = mount.querySelector('.confirm-modal');
     check('reset opens confirm modal', !!confirmModal && confirmModal.classList.contains('is-open'));
     confirmModal.querySelector('.reset-cancel').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     check('cancel keeps state', app.state.slots.helmet.material === 'iron' &&
@@ -396,11 +438,12 @@
     check('resistance row separated from boots by a larger gap (' + resGap + ' vs ' + controlsGap + ')',
       resGap > controlsGap);
     if (mobile) {
-      var bar = mount.querySelector('.mobile-bar');
-      check('mobile footer has a top divider', parseFloat(getComputedStyle(bar).borderTopWidth) >= 2);
-      check('mobile footer is not sticky', getComputedStyle(bar).position !== 'fixed');
-      check('one screen fits empty config (' + mount.getBoundingClientRect().height.toFixed(0) + 'px)',
-        mount.getBoundingClientRect().height <= 700);
+      var mBar = mount.querySelector('.mobile-bar');
+      check('mobile footer has a top divider', parseFloat(getComputedStyle(mBar).borderTopWidth) >= 2);
+      check('mobile footer stays fixed', getComputedStyle(mBar).position === 'fixed');
+      check('mobile footer sits at the viewport bottom (' + mBar.getBoundingClientRect().bottom.toFixed(0) +
+        ' vs ' + document.documentElement.clientHeight + ')',
+        near(mBar.getBoundingClientRect().bottom, document.documentElement.clientHeight, 2));
     }
 
     // narrow-viewport popover wraps rather than overflowing
@@ -421,6 +464,14 @@
     failures++;
   }
   log(failures === 0 ? 'all green' : failures + ' failing');
+
+  // headless runs read the verdict from the dom (chrome --dump-dom)
+  var out = document.createElement('pre');
+  out.id = 'uitest-out';
+  out.hidden = true;
+  out.textContent = lines.join('\n');
+  document.body.appendChild(out);
+  document.documentElement.setAttribute('data-uitest', failures === 0 ? 'green' : 'failing');
 })();
 </script>
 </body>

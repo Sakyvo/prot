@@ -1,10 +1,12 @@
-// prot — ui mount v2. icon-only, borderless, popover material picker,
-// shield levels for resistance, inline detail on desktop / modal on mobile.
+// prot — ui mount v6. two tabs (def / dmg) over a single column, one divider,
+// full-width results underneath. mobile: stacked tabs, results in flow, fixed
+// footer bar with the two headline numbers.
 (function (root) {
   'use strict';
   var Calc = root.ProtCalc;
   var TEX = 'assets/textures/';
-  var MOBILE = '(max-width: 760px)';
+  var STORE_KEY = 'prot.state';
+  var TABS = ['def', 'dmg'];
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -24,8 +26,6 @@
   function materialTex(material, slot) {
     return TEX + (material === 'none' ? 'empty_armor_slot_' + slot : material + '_' + slot) + '.png';
   }
-
-  var STORE_KEY = 'prot.state';
 
   function defaultState() {
     var state = { slots: {}, resistance: 0, damage: '' };
@@ -56,9 +56,39 @@
   function mount(container) {
     var state = loadState();
 
+    // ---- tabs + panels ----
+    var tabs = el('nav', 'tabs');
+    var tabEls = {};
+    var panelEls = {};
+
+    function setTab(id) {
+      TABS.forEach(function (name) {
+        if (tabEls[name]) tabEls[name].classList.toggle('is-active', name === id);
+        if (panelEls[name]) panelEls[name].hidden = name !== id;
+      });
+    }
+
+    TABS.forEach(function (id) {
+      var b = el('button', 'tab', id);
+      b.type = 'button';
+      b.dataset.tab = id;
+      b.addEventListener('click', function () { setTab(id); });
+      tabEls[id] = b;
+      tabs.appendChild(b);
+    });
+
+    var defPanel = el('section', 'panel');
+    defPanel.dataset.panel = 'def';
+    var dmgPanel = el('section', 'panel');
+    dmgPanel.dataset.panel = 'dmg';
+    dmgPanel.hidden = true;
+    panelEls.def = defPanel;
+    panelEls.dmg = dmgPanel;
+    dmgPanel.appendChild(el('p', 'panel-placeholder', 'damage'));
+
+    // ---- def panel: armor + resistance ----
     var controls = el('section', 'controls');
     var durabilityEls = {};
-    var triggerEls = {};
     var openPopover = null;
 
     function closePopover() {
@@ -75,7 +105,6 @@
       var trigger = el('button', 'slot-trigger');
       trigger.type = 'button';
       trigger.appendChild(img(materialTex(state.slots[slot].material, slot), state.slots[slot].material));
-      triggerEls[slot] = trigger;
 
       var pop = el('div', 'material-popover');
       Calc.MATERIALS.forEach(function (material) {
@@ -114,8 +143,6 @@
       input.value = String(state.slots[slot].prot);
       var inc = el('button', 'prot-inc', '+');
       dec.type = inc.type = 'button';
-
-      var slider = null;
 
       function setProt(v) {
         v = parseInt(v, 10);
@@ -175,26 +202,13 @@
     resRow.appendChild(resetBtn);
     controls.appendChild(resRow);
 
-    var resetModal = el('div', 'detail-modal reset-modal');
-    var resetBackdrop = el('div', 'modal-backdrop');
-    var resetCard = el('div', 'modal-card');
-    resetCard.appendChild(el('p', 'reset-question', 'reset all?'));
-    var resetActions = el('div', 'reset-actions');
-    var resetCancel = el('button', 'reset-cancel', 'cancel');
-    var resetConfirm = el('button', 'reset-confirm', 'reset');
-    resetCancel.type = resetConfirm.type = 'button';
-    resetActions.appendChild(resetCancel);
-    resetActions.appendChild(resetConfirm);
-    resetCard.appendChild(resetActions);
-    resetModal.appendChild(resetBackdrop);
-    resetModal.appendChild(resetCard);
-
     function setRes(n) {
       state.resistance = n;
       levelEls.forEach(function (b, i) { b.classList.toggle('is-active', i === n); });
       render();
     }
-    controls.appendChild(resRow);
+
+    defPanel.appendChild(controls);
 
     // ---- results ----
     var results = el('aside', 'results');
@@ -257,6 +271,9 @@
     results.appendChild(damageRow);
     results.appendChild(capped);
 
+    // the divider only marks input | output
+    var divider = el('hr', 'divider');
+
     // mobile footer bar (numbers pinned to both edges, labels centred under their number)
     var mobileBar = el('div', 'mobile-bar');
     var mRed = el('div', 'stat reduction');
@@ -272,36 +289,20 @@
     mobileBar.appendChild(mRed);
     mobileBar.appendChild(mTaken);
 
-    // detail modal (mobile only): faded in/out, svg close, backdrop closes
-    var modal = el('div', 'detail-modal');
-    var backdrop = el('div', 'modal-backdrop');
-    var card = el('div', 'modal-card');
-    var close = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    close.setAttribute('viewBox', '0 0 24 24');
-    close.setAttribute('class', 'modal-close');
-    var cross = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    cross.setAttribute('d', 'M5 5 L19 19 M19 5 L5 19');
-    cross.setAttribute('stroke', 'currentColor');
-    cross.setAttribute('stroke-width', '2');
-    cross.setAttribute('fill', 'none');
-    close.appendChild(cross);
-    var modalLines = el('div', 'modal-lines');
-    var mLines = [el('p', 'line', 'armor 0.00%'), el('p', 'line', 'prot 0.00%'), el('p', 'line', 'res 0.00%')];
-    mLines.forEach(function (l) { modalLines.appendChild(l); });
-    card.appendChild(close);
-    card.appendChild(modalLines);
-    modal.appendChild(backdrop);
-    modal.appendChild(card);
-    container.appendChild(modal);
-
-    function openModal() {
-      modal.classList.add('is-open');
-    }
-    function closeModal() {
-      modal.classList.remove('is-open');
-    }
-    backdrop.addEventListener('click', closeModal);
-    close.addEventListener('click', function (ev) { ev.stopPropagation(); closeModal(); });
+    // reset confirmation
+    var confirmModal = el('div', 'confirm-modal');
+    var confirmBackdrop = el('div', 'modal-backdrop');
+    var confirmCard = el('div', 'modal-card');
+    confirmCard.appendChild(el('p', 'reset-question', 'reset all?'));
+    var resetActions = el('div', 'reset-actions');
+    var resetCancel = el('button', 'reset-cancel', 'cancel');
+    var resetConfirm = el('button', 'reset-confirm', 'reset');
+    resetCancel.type = resetConfirm.type = 'button';
+    resetActions.appendChild(resetCancel);
+    resetActions.appendChild(resetConfirm);
+    confirmCard.appendChild(resetActions);
+    confirmModal.appendChild(confirmBackdrop);
+    confirmModal.appendChild(confirmCard);
 
     function pct(x) { return (x * 100).toFixed(2) + '%'; }
     function num(x) { return x.toFixed(2); }
@@ -319,9 +320,6 @@
       bArmor.value.textContent = pct(r.armorPct);
       bProt.value.textContent = pct(r.epfPct);
       bRes.value.textContent = pct(r.resPct);
-      mLines[0].textContent = 'armor ' + pct(r.armorPct);
-      mLines[1].textContent = 'prot ' + pct(r.epfPct);
-      mLines[2].textContent = 'res ' + pct(r.resPct);
 
       capped.hidden = !r.epfCapped;
 
@@ -349,12 +347,11 @@
     }
 
     dmgInput.addEventListener('input', render);
-    render();
 
-    function closeReset() { resetModal.classList.remove('is-open'); }
+    function closeReset() { confirmModal.classList.remove('is-open'); }
 
-    resetBtn.addEventListener('click', function () { resetModal.classList.add('is-open'); });
-    resetBackdrop.addEventListener('click', closeReset);
+    resetBtn.addEventListener('click', function () { confirmModal.classList.add('is-open'); });
+    confirmBackdrop.addEventListener('click', closeReset);
     resetCancel.addEventListener('click', closeReset);
     resetConfirm.addEventListener('click', function () {
       Calc.SLOTS.forEach(function (slot) {
@@ -373,22 +370,20 @@
       render();
     });
 
-    container.appendChild(controls);
+    container.appendChild(tabs);
+    container.appendChild(defPanel);
+    container.appendChild(dmgPanel);
+    container.appendChild(divider);
     container.appendChild(results);
     container.appendChild(mobileBar);
-    container.appendChild(resetModal);
+    container.appendChild(confirmModal);
 
     document.addEventListener('click', function () { closePopover(); });
 
-    // mobile: tapping a stat label opens the detail modal
-    [redLabel, takenLabel, mRedLabel, mTakenLabel].forEach(function (label) {
-      label.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        if (matchMedia(MOBILE).matches) openModal();
-      });
-    });
+    setTab('def');
+    render();
 
-    return { state: state, render: render };
+    return { state: state, render: render, setTab: setTab };
   }
 
   root.ProtUI = { mount: mount };

@@ -48,13 +48,28 @@ body {
 
 main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 32px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
   max-width: 1120px;
   margin: 0 auto;
   padding: 48px 0;
 }
+
+/* ---------- tabs ---------- */
+
+.tabs { display: grid; grid-auto-flow: column; justify-content: start; gap: 28px; }
+
+.tab {
+  padding: 4px 12px;
+  color: var(--ink-soft);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tab:hover { background: var(--wash); }
+
+.tab.is-active { background: var(--ink); color: var(--ground); }
+
+.divider { margin: 0; border: 0; border-top: 2px solid var(--ink); }
 
 /* ---------- slot rows ---------- */
 
@@ -223,11 +238,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .results {
   display: grid;
-  gap: 28px;
+  grid-template-columns: repeat(2, max-content);
+  gap: 24px 64px;
   align-content: start;
-  border-left: 2px solid var(--ink);
-  padding-left: 32px;
+  justify-content: start;
 }
+
+.results > .breakdown,
+.results > .damage-row,
+.results > .epf-capped { grid-column: 1 / -1; }
 
 .breakdown {
   margin: 0;
@@ -271,7 +290,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .epf-capped[hidden] { display: none; }
 
-.damage-row { display: grid; gap: 10px; }
+.damage-row {
+  display: grid;
+  grid-template-columns: max-content 180px max-content;
+  align-items: center;
+  column-gap: 18px;
+}
 
 .damage-label { color: var(--ink-soft); }
 
@@ -297,11 +321,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .heart-icon { width: 20px; height: 20px; display: block; }
 
-/* ---------- mobile bar & detail modal ---------- */
+/* ---------- mobile bar & confirm modal ---------- */
 
 .mobile-bar { display: none; }
 
-.detail-modal {
+.confirm-modal {
   position: fixed;
   inset: 0;
   display: flex;
@@ -313,7 +337,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   z-index: 60;
 }
 
-.detail-modal.is-open { opacity: 1; visibility: visible; }
+.confirm-modal.is-open { opacity: 1; visibility: visible; }
 
 .modal-backdrop { position: absolute; inset: 0; background: rgba(16, 20, 24, 0.28); }
 
@@ -326,34 +350,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   gap: 10px;
 }
 
-.modal-lines { display: grid; gap: 6px; }
-
-.modal-lines .line { margin: 0; color: var(--ink-soft); }
-
-.modal-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 18px;
-  height: 18px;
-  color: var(--ink-soft);
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-
-.modal-close:hover { color: var(--ink); }
-
 /* ---------- mobile ---------- */
 
 @media (max-width: 760px) {
   :root { --control-col: 100%; --prot-group: 184px; }
 
+  body { padding-bottom: 96px; }
+
   main {
-    grid-template-columns: 1fr;
-    gap: 22px;
+    gap: 20px;
     max-width: none;
     padding: 22px 20px 28px;
   }
+
+  .tabs { grid-auto-flow: row; gap: 8px; }
+
+  .tab { justify-self: stretch; text-align: left; }
 
   .controls { gap: 14px; }
 
@@ -392,11 +404,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .stat-value { font-size: 26px; min-width: 0; }
 
-  .results { gap: 14px; border-left: 0; padding-left: 0; }
+  .results { grid-template-columns: repeat(2, minmax(0, max-content)); gap: 16px 20px; }
 
-  .breakdown { display: none; }
+  .results .stat { gap: 8px; }
 
-  .damage-row { gap: 6px; }
+  .results .stat-value { font-size: 22px; }
+
+  .damage-row { grid-template-columns: max-content minmax(0, 1fr) max-content; column-gap: 12px; }
 
   .damage-input { padding: 6px 10px; }
 
@@ -404,17 +418,18 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .damage-value, .heart-value { font-size: 22px; }
 
-  .breakdown { display: none; }
-
-  .results > .stat { display: none; }
-
   .mobile-bar {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-top: 6px;
-    padding-top: 14px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 12px 20px 14px;
+    background: var(--ground);
     border-top: 2px solid var(--ink);
+    z-index: 40;
   }
 
   .mobile-bar .stat {
@@ -424,8 +439,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 
   .mobile-bar .stat-value { font-size: 26px; min-width: 0; }
-
-  .mobile-bar .stat-label { cursor: pointer; }
 
   .mobile-bar .stat:first-child { align-items: flex-start; }
   .mobile-bar .stat:last-child { align-items: flex-end; }
