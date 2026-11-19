@@ -333,8 +333,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .results .stat-value { width: var(--stat-col); }
 
-/* the left reading starts on the divider's edge; the right one hugs its own label */
-.results .stat.reduction .stat-value { text-align: left; }
+/* the left reading starts on the divider's edge and carries its label with it;
+   the right one keeps a fixed box so its own edge never moves */
+.results .stat.reduction .stat-value { width: auto; text-align: left; }
 
 .stat-label { color: var(--reduction-soft); cursor: default; }
 

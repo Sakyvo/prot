@@ -443,32 +443,65 @@
     var redValueEl = redStat.querySelector('.stat-value');
     var redLabelEl = redStat.querySelector('.stat-label');
     var labelLeftBefore = redLabelEl.getBoundingClientRect().left;
-    var valueWidthBefore = redValueEl.getBoundingClientRect().width;
 
-    // the reading starts where the divider and the dmg label start, not 42px in
+    // the reading starts where the divider and the dmg label start
+    var statGap = mobile ? 8 : 14;
+    var takenValueEl = takenStat.querySelector('.stat-value');
+    var takenLabelEl = takenStat.querySelector('.stat-label');
+    // measure the ink, not the box: a fixed box hides the stretch behind its slack
+    function inkWidth(node) {
+      var range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getBoundingClientRect().width;
+    }
+    function inkRight(node) {
+      var box = node.getBoundingClientRect();
+      return getComputedStyle(node).textAlign === 'right' ? box.right : box.left + inkWidth(node);
+    }
     check('reduction digits start at the block edge',
       getComputedStyle(redValueEl).textAlign === 'left' &&
       near(redValueEl.getBoundingClientRect().left, results.querySelector('.damage-label')
         .getBoundingClientRect().left, 1) &&
       near(redValueEl.getBoundingClientRect().left, divider.getBoundingClientRect().left, 1));
-    check('taken still hugs its own label',
-      getComputedStyle(takenStat.querySelector('.stat-value')).textAlign === 'right');
-    var valueLeftBefore = redValueEl.getBoundingClientRect().left;
 
+    // its own name floats just behind the digits, so the gap never stretches
+    check('the reading box hugs its digits (' + redValueEl.getBoundingClientRect().width.toFixed(0) +
+      'px box vs ' + inkWidth(redValueEl).toFixed(0) + 'px ink)',
+      near(redValueEl.getBoundingClientRect().width, inkWidth(redValueEl), 1));
+    check('the reading keeps a ' + statGap + 'px gap to its name (' +
+      (redLabelEl.getBoundingClientRect().left - inkRight(redValueEl)).toFixed(0) + 'px)',
+      near(redLabelEl.getBoundingClientRect().left - inkRight(redValueEl), statGap, 1));
+
+    // taken stays in its fixed box: digits hug the name, the edge never moves
+    var takenWidthBefore = takenValueEl.getBoundingClientRect().width;
+    check('taken keeps a fixed ' + takenWidthBefore.toFixed(0) + 'px box (' +
+      takenValueEl.getBoundingClientRect().width.toFixed(0) + 'px)',
+      near(takenValueEl.getBoundingClientRect().width, takenWidthBefore, 1));
+    check('taken stays right-aligned with its name ' + statGap + 'px away',
+      getComputedStyle(takenValueEl).textAlign === 'right' &&
+      near(takenLabelEl.getBoundingClientRect().left - inkRight(takenValueEl), statGap, 1));
+    var takenRightBefore = takenLabelEl.getBoundingClientRect().right;
+
+    var valueLeftBefore = redValueEl.getBoundingClientRect().left;
     levels[5].click();
     check('resistance V reads 100.00%', redValueEl.textContent.trim() === '100.00%');
-    check('the value box stays ' + valueWidthBefore.toFixed(0) + 'px wide (' +
-      redValueEl.getBoundingClientRect().width.toFixed(0) + 'px)',
-      near(redValueEl.getBoundingClientRect().width, valueWidthBefore, 1));
-    check('a three-digit reading leaves the label where it was (' +
-      labelLeftBefore.toFixed(0) + ' vs ' + redLabelEl.getBoundingClientRect().left.toFixed(0) + ')',
-      near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
-    check('a three-digit reading still starts at the block edge (' +
+    check('a wider reading keeps its left edge (' +
       redValueEl.getBoundingClientRect().left.toFixed(0) + ' vs ' + valueLeftBefore.toFixed(0) + ')',
       near(redValueEl.getBoundingClientRect().left, valueLeftBefore, 1));
+    check('a wider reading keeps the ' + statGap + 'px gap (' +
+      (redLabelEl.getBoundingClientRect().left - inkRight(redValueEl)).toFixed(0) + 'px)',
+      near(redLabelEl.getBoundingClientRect().left - inkRight(redValueEl), statGap, 1));
+    check('the name follows the wider reading (' +
+      (redLabelEl.getBoundingClientRect().left - labelLeftBefore).toFixed(0) + 'px, digits grew ' +
+      (redValueEl.getBoundingClientRect().width - redValueEl.getBoundingClientRect().width).toFixed(0) + ')',
+      redLabelEl.getBoundingClientRect().left >= labelLeftBefore);
+    check('taken does not budge (' + takenLabelEl.getBoundingClientRect().right.toFixed(0) +
+      ' vs ' + takenRightBefore.toFixed(0) + ')',
+      near(takenLabelEl.getBoundingClientRect().right, takenRightBefore, 1) &&
+      near(takenValueEl.getBoundingClientRect().width, takenWidthBefore, 1));
     levels[0].click();
-    check('the label stays put again at two digits',
-      near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
+    check('the gap is still ' + statGap + 'px at two digits',
+      near(redLabelEl.getBoundingClientRect().left - inkRight(redValueEl), statGap, 1));
 
     var lineVals = results.querySelectorAll('.breakdown .line-value');
     check('three breakdown values', lineVals.length === 3);
