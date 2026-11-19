@@ -444,6 +444,17 @@
     var redLabelEl = redStat.querySelector('.stat-label');
     var labelLeftBefore = redLabelEl.getBoundingClientRect().left;
     var valueWidthBefore = redValueEl.getBoundingClientRect().width;
+
+    // the reading starts where the divider and the dmg label start, not 42px in
+    check('reduction digits start at the block edge',
+      getComputedStyle(redValueEl).textAlign === 'left' &&
+      near(redValueEl.getBoundingClientRect().left, results.querySelector('.damage-label')
+        .getBoundingClientRect().left, 1) &&
+      near(redValueEl.getBoundingClientRect().left, divider.getBoundingClientRect().left, 1));
+    check('taken still hugs its own label',
+      getComputedStyle(takenStat.querySelector('.stat-value')).textAlign === 'right');
+    var valueLeftBefore = redValueEl.getBoundingClientRect().left;
+
     levels[5].click();
     check('resistance V reads 100.00%', redValueEl.textContent.trim() === '100.00%');
     check('the value box stays ' + valueWidthBefore.toFixed(0) + 'px wide (' +
@@ -452,6 +463,9 @@
     check('a three-digit reading leaves the label where it was (' +
       labelLeftBefore.toFixed(0) + ' vs ' + redLabelEl.getBoundingClientRect().left.toFixed(0) + ')',
       near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
+    check('a three-digit reading still starts at the block edge (' +
+      redValueEl.getBoundingClientRect().left.toFixed(0) + ' vs ' + valueLeftBefore.toFixed(0) + ')',
+      near(redValueEl.getBoundingClientRect().left, valueLeftBefore, 1));
     levels[0].click();
     check('the label stays put again at two digits',
       near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
