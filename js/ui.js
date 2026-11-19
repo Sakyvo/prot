@@ -84,17 +84,10 @@
     dmgPanel.appendChild(el('p', 'panel-title', 'dmg'));
     var dmgControls = el('section', 'dmg-controls');
 
-    function dmgRow(field, label, iconSrc) {
+    function dmgRow(field, label) {
       var row = el('section', 'dmg-row');
       row.dataset.field = field;
-      if (iconSrc) {
-        var icon = img(iconSrc, label);
-        icon.className = 'dmg-icon ' + field + '-icon';
-        icon.title = label;
-        row.appendChild(icon);
-      } else {
-        row.appendChild(el('span', 'dmg-label', label));
-      }
+      row.appendChild(el('span', 'dmg-label', label));
       return row;
     }
 
@@ -116,9 +109,9 @@
 
     // levels: sharpness / strength / weakness share one stepper shape
     var levelInputs = {};
-    function levelRow(field, label, iconSrc, cls) {
+    function levelRow(field, label, cls) {
       cls = cls || field;
-      var row = dmgRow(field, label, iconSrc);
+      var row = dmgRow(field, label);
       var stepper = el('div', 'prot-stepper dmg-stepper');
       var dec = el('button', 'prot-dec ' + cls + '-dec', '-');
       var input = el('input', 'prot-input ' + cls + '-input');
@@ -146,9 +139,9 @@
       levelInputs[field] = input;
       dmgControls.appendChild(row);
     }
-    levelRow('sharpness', 'sharp', null, 'sharp');
-    levelRow('strength', 'strength', TEX + 'effect_strength.png');
-    levelRow('weakness', 'weakness', TEX + 'effect_weakness.png');
+    levelRow('sharpness', 'sharp', 'sharp');
+    levelRow('strength', 'strength');
+    levelRow('weakness', 'weakness');
 
     // crit: one explicit checkbox, no jump inference
     var critRow = dmgRow('crit', 'crit');
@@ -204,9 +197,10 @@
         if (modeBtns[key]) modeBtns[key].classList.toggle('is-active', key === name);
       });
       dmgTag.textContent = name;
+      // reserve the space so the divider and results never shift between modes
       dmgPanel.querySelectorAll('.dmg-row').forEach(function (row) {
         var isManual = row.dataset.field === 'manual';
-        row.hidden = name === 'mnl' ? !isManual : isManual;
+        row.classList.toggle('is-off', name === 'mnl' ? !isManual : isManual);
       });
       render();
       save();
@@ -371,11 +365,13 @@
     capped.hidden = true;
 
     var damageRow = el('div', 'damage-row');
-    damageRow.appendChild(el('span', 'damage-label', 'dmg'));
+    var dmgLead = el('div', 'dmg-lead');
+    dmgLead.appendChild(el('span', 'damage-label', 'dmg'));
     var dmgValue = el('span', 'dmg-value', '1.00');
+    dmgLead.appendChild(dmgValue);
     var dmgTag = el('span', 'dmg-tag', 'ccl');
-    damageRow.appendChild(dmgValue);
-    damageRow.appendChild(dmgTag);
+    var dmgChain = el('div', 'dmg-chain');
+    dmgChain.appendChild(dmgTag);
     var dmgOut = el('div', 'damage-out');
     var dmgVal = el('span', 'damage-value', '0.00');
     var heartVal = el('span', 'heart-value', '0.00');
@@ -386,7 +382,9 @@
     dmgOut.appendChild(equals);
     dmgOut.appendChild(heartVal);
     dmgOut.appendChild(heartIcon);
-    damageRow.appendChild(dmgOut);
+    dmgChain.appendChild(dmgOut);
+    damageRow.appendChild(dmgLead);
+    damageRow.appendChild(dmgChain);
 
     results.appendChild(statRed);
     results.appendChild(statTaken);

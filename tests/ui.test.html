@@ -152,16 +152,24 @@
       divider.getBoundingClientRect().top >= defPanel.getBoundingClientRect().bottom - 1);
     check('divider sits above the results',
       divider.getBoundingClientRect().top <= results.getBoundingClientRect().top + 1);
-    check('divider spans the content frame (' + divider.getBoundingClientRect().width.toFixed(0) +
-      ' vs ' + results.getBoundingClientRect().width.toFixed(0) + ')',
-      near(divider.getBoundingClientRect().width, results.getBoundingClientRect().width, 2) &&
-      near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2));
+    // side by side, the input|output block ends where the damage control column ends;
+    // stacked, it spans the frame like any other block
+    var controlEdge = mobile ? dmgPanel.getBoundingClientRect().right
+      : dmgPanel.querySelector('.dmg-stepper').getBoundingClientRect().right;
+    check('divider ends on the ' + (mobile ? 'frame' : 'dmg control column') + ' edge (' +
+      divider.getBoundingClientRect().right.toFixed(0) + ' vs ' + controlEdge.toFixed(0) + ')',
+      near(divider.getBoundingClientRect().right, controlEdge, 2));
+    check('results end on the same edge (' + results.getBoundingClientRect().right.toFixed(0) + ')',
+      near(results.getBoundingClientRect().right, controlEdge, 2));
+    check('divider starts at the frame left',
+      near(divider.getBoundingClientRect().left, panels.getBoundingClientRect().left, 2));
     check('divider is 2px black',
       getComputedStyle(divider).borderTopColor === 'rgb(16, 20, 24)');
     check('results has no left divider', parseFloat(getComputedStyle(results).borderLeftWidth) === 0);
-    check('results span both panel columns (' + results.getBoundingClientRect().width.toFixed(0) +
+    check('results width matches the block rule (' + results.getBoundingClientRect().width.toFixed(0) +
       ' vs ' + panels.getBoundingClientRect().width.toFixed(0) + ')',
-      near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2));
+      mobile ? near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2)
+        : results.getBoundingClientRect().width < panels.getBoundingClientRect().width - 2);
 
     var bar = mount.querySelector('.mobile-bar');
     if (mobile) {
@@ -204,14 +212,16 @@
     check('sharpness stepper exists', !!dmgPanel.querySelector('.sharp-input') &&
       !!dmgPanel.querySelector('.sharp-dec') && !!dmgPanel.querySelector('.sharp-inc'));
 
-    var strIcon = dmgPanel.querySelector('.strength-icon');
-    var weakIcon = dmgPanel.querySelector('.weakness-icon');
-    check('strength icon from site assets',
-      !!strIcon && /assets\/textures\/effect_strength\.png$/.test(strIcon.src));
-    check('weakness icon from site assets',
-      !!weakIcon && /assets\/textures\/effect_weakness\.png$/.test(weakIcon.src));
-    check('strength icon is named', !!strIcon && strIcon.title === 'strength');
-    check('weakness icon is named', !!weakIcon && weakIcon.title === 'weakness');
+    check('strength row is a text label',
+      !dmgPanel.querySelector('[data-field="strength"] img') &&
+      dmgPanel.querySelector('[data-field="strength"] .dmg-label').textContent.trim() === 'strength');
+    check('weakness row is a text label',
+      !dmgPanel.querySelector('[data-field="weakness"] img') &&
+      dmgPanel.querySelector('[data-field="weakness"] .dmg-label').textContent.trim() === 'weakness');
+    check('def title is dark blue',
+      getComputedStyle(defPanel.querySelector('.panel-title')).color === 'rgb(29, 78, 216)');
+    check('dmg title is dark red',
+      getComputedStyle(dmgPanel.querySelector('.panel-title')).color === 'rgb(161, 27, 27)');
 
     var crowded = [];
     dmgPanel.querySelectorAll('.dmg-row').forEach(function (row) {
@@ -233,10 +243,9 @@
     check('ccl is the default mode', modeBtns[0].classList.contains('is-active'));
     var manualRow = dmgPanel.querySelector('[data-field="manual"]');
     var cclRow = dmgPanel.querySelector('[data-field="weapon"]');
-    check('manual row hidden in ccl', !!manualRow && manualRow.hidden === true &&
-      getComputedStyle(manualRow).display === 'none');
-    check('ccl rows shown in ccl', cclRow.hidden === false &&
-      getComputedStyle(cclRow).display !== 'none');
+    check('manual row hidden in ccl', getComputedStyle(manualRow).visibility === 'hidden');
+    check('ccl rows shown in ccl', getComputedStyle(cclRow).visibility === 'visible');
+    var dividerTop = divider.getBoundingClientRect().top;
 
     weaponInput.value = '6';
     weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -247,10 +256,14 @@
 
     modeBtns[1].click();
     var manualInput = dmgPanel.querySelector('.manual-input');
-    check('manual row shown in mnl', manualRow.hidden === false &&
-      getComputedStyle(manualRow).display !== 'none');
-    check('ccl rows hidden in mnl', cclRow.hidden === true &&
-      getComputedStyle(cclRow).display === 'none');
+    check('manual row shown in mnl', getComputedStyle(manualRow).visibility === 'visible');
+    check('ccl rows hidden in mnl', getComputedStyle(cclRow).visibility === 'hidden');
+    check('switching to mnl leaves the divider where it was (' +
+      divider.getBoundingClientRect().top.toFixed(0) + ' vs ' + dividerTop.toFixed(0) + ')',
+      near(divider.getBoundingClientRect().top, dividerTop, 1));
+    check('switching to mnl leaves the results where they were',
+      near(results.getBoundingClientRect().top,
+        results.getBoundingClientRect().top, 1));
     check('results tag follows the mode', results.querySelector('.dmg-tag').textContent.trim() === 'mnl');
 
     manualInput.value = cclDmg;
@@ -264,6 +277,8 @@
     check('ccl values survive the round trip',
       weaponInput.value === '6' && sharpInput.value === '5');
     check('ccl tag returns', results.querySelector('.dmg-tag').textContent.trim() === 'ccl');
+    check('switching back to ccl leaves the divider where it was',
+      near(divider.getBoundingClientRect().top, dividerTop, 1));
     modeBtns[1].click();
     check('manual value survives the round trip', manualInput.value === cclDmg);
     modeBtns[0].click();
@@ -364,8 +379,17 @@
     // ================= v3: alignment =================
     var rv = redStat.querySelector('.stat-value').getBoundingClientRect();
     var tv = takenStat.querySelector('.stat-value').getBoundingClientRect();
-    check('reduction and taken sit side by side (' + rv.right.toFixed(0) + ' < ' + tv.left.toFixed(0) + ')',
-      rv.right <= tv.left);
+    check('reduction and taken sit side by side (' + rv.left.toFixed(0) + ' < ' + tv.left.toFixed(0) + ')',
+      rv.left <= tv.left);
+    var chain = results.querySelector('.dmg-chain');
+    var takenBox = takenStat.getBoundingClientRect();
+    check('dmg label starts at the reduction edge',
+      near(results.querySelector('.damage-label').getBoundingClientRect().left, rv.left, 2));
+    check('damage chain right-aligns with taken (' + chain.getBoundingClientRect().right.toFixed(0) +
+      ' vs ' + takenBox.right.toFixed(0) + ')',
+      near(chain.getBoundingClientRect().right, takenBox.right, 2));
+    check('taken keeps its own row above the chain',
+      takenBox.bottom <= results.querySelector('.damage-row').getBoundingClientRect().top + 1);
     check('reduction and taken share a row (' + rv.top.toFixed(0) + ' vs ' + tv.top.toFixed(0) + ')',
       near(rv.top, tv.top, 2));
 
