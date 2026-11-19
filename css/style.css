@@ -21,7 +21,7 @@
   --dmg: #a11b1b;
   --wash: rgba(255, 255, 255, 0.45);
   --wash-strong: rgba(255, 255, 255, 0.78);
-  --control-col: 240px;
+  --control-col: 200px;
   --prot-group: 200px;
   --panel-gap: 32px;
   --dmg-label: 84px;
@@ -71,6 +71,8 @@ main {
 }
 
 .panel-title { margin: 0 0 18px; }
+
+.panel[data-panel="def"] { padding-right: 24px; border-right: 2px solid var(--ink); }
 
 .panel[data-panel="def"] .panel-title { color: var(--def); }
 
@@ -326,9 +328,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  min-width: var(--stat-col);
   color: var(--reduction);
 }
+
+.results .stat-value { width: var(--stat-col); }
 
 .stat-label { color: var(--reduction-soft); cursor: default; }
 
@@ -390,7 +393,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .heart-value { font-size: 26px; font-variant-numeric: tabular-nums; }
 
-.heart-icon { width: 34px; height: 32px; margin-left: -10px; display: block; }
+.heart-icon { width: 34px; height: 32px; margin-left: -10px; position: relative; top: -2px; display: block; }
 
 /* ---------- mobile bar & confirm modal ---------- */
 
@@ -424,7 +427,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ---------- mobile ---------- */
 
 @media (max-width: 760px) {
-  :root { --control-col: 100%; --prot-group: 184px; }
+  :root { --control-col: 100%; --prot-group: 184px; --stat-col: 96px; }
 
   body { padding-bottom: 96px; }
 
@@ -477,7 +480,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   /* the weapon row fills the shared control column, not the stepper input width */
   .weapon-input { width: 100%; }
 
-  .stat-value { font-size: 26px; min-width: 0; }
+  .stat-value { font-size: 26px; }
+
+  .panel[data-panel="def"] { padding-right: 0; border-right: 0; }
 
   .divider, .results { width: 100%; }
 

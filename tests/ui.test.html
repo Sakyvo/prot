@@ -93,8 +93,12 @@
       heartBox.width.toFixed(0) + 'x' + heartBox.height.toFixed(0) + ')',
       heartBox.width === 34 && heartBox.height === 32 &&
       heartBox.width / heartBox.height === 17 / 16);
+    var heartValBox = heartVal.getBoundingClientRect();
     check('heart sits 8px from the number',
-      near(heartBox.left - heartVal.getBoundingClientRect().right, 8, 1));
+      near(heartBox.left - heartValBox.right, 8, 1));
+    check('heart rides 2px above the number (' +
+      (heartBox.top + heartBox.height / 2 - (heartValBox.top + heartValBox.height / 2)).toFixed(1) + 'px)',
+      near(heartBox.top + heartBox.height / 2 - (heartValBox.top + heartValBox.height / 2), -2, 0.6));
 
     ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
       var row = mount.querySelector('[data-slot="' + slot + '"]');
@@ -153,6 +157,29 @@
       dmgPanel.querySelector('.panel-title').textContent.trim() === 'dmg');
     check('input works without touching a tab',
       defPanel.querySelector('.slot-row') !== null && dmgPanel.querySelector('.weapon-input') !== null);
+
+    // a divider stands between the columns, ending level with the resistance row
+    var defBorder = getComputedStyle(defPanel);
+    if (mobile) {
+      check('no column divider when the panels stack', parseFloat(defBorder.borderRightWidth) === 0);
+    } else {
+      check('column divider is 2px ink (' + defBorder.borderRightWidth + ' ' + defBorder.borderRightColor + ')',
+        parseFloat(defBorder.borderRightWidth) === 2 && defBorder.borderRightColor === 'rgb(16, 20, 24)');
+      check('column divider ends level with the resistance row (' +
+        defPanel.getBoundingClientRect().bottom.toFixed(0) + ' vs ' +
+        resRow.getBoundingClientRect().bottom.toFixed(0) + ')',
+        near(defPanel.getBoundingClientRect().bottom, resRow.getBoundingClientRect().bottom, 1));
+      check('column divider starts at the panel top',
+        near(defPanel.getBoundingClientRect().top, panels.getBoundingClientRect().top, 1));
+      var clearance = defPanel.getBoundingClientRect().right -
+        first.querySelector('.durability').getBoundingClientRect().right;
+      var defLabelGap = first.querySelector('.prot-stepper').getBoundingClientRect().left -
+        first.querySelector('.prot-label').getBoundingClientRect().right;
+      check('divider clearance (' + clearance.toFixed(0) + 'px) exceeds the prot label gap (' +
+        defLabelGap.toFixed(0) + 'px)', clearance > defLabelGap);
+      check('dmg panel starts right of the divider',
+        dmgPanel.getBoundingClientRect().left >= defPanel.getBoundingClientRect().right);
+    }
 
     var divider = mount.querySelector('.divider');
     check('divider exists', !!divider);
@@ -387,7 +414,7 @@
     var oddBorders = [];
     mount.querySelectorAll('*').forEach(function (n) {
       if (n === results || n.classList.contains('divider') || n.classList.contains('mobile-bar') ||
-          n.closest('.confirm-modal')) return;
+          n.classList.contains('panel') || n.closest('.confirm-modal')) return;
       var cs = getComputedStyle(n);
       if (['borderTopWidth', 'borderRightWidth', 'borderBottomWidth'].some(function (k) {
         return parseFloat(cs[k]) > 0;
@@ -411,6 +438,23 @@
       takenBox.bottom <= results.querySelector('.damage-row').getBoundingClientRect().top + 1);
     check('reduction and taken share a row (' + rv.top.toFixed(0) + ' vs ' + tv.top.toFixed(0) + ')',
       near(rv.top, tv.top, 2));
+
+    // resistance V takes the reading to 100.00%: a wider number must not shove the label
+    var redValueEl = redStat.querySelector('.stat-value');
+    var redLabelEl = redStat.querySelector('.stat-label');
+    var labelLeftBefore = redLabelEl.getBoundingClientRect().left;
+    var valueWidthBefore = redValueEl.getBoundingClientRect().width;
+    levels[5].click();
+    check('resistance V reads 100.00%', redValueEl.textContent.trim() === '100.00%');
+    check('the value box stays ' + valueWidthBefore.toFixed(0) + 'px wide (' +
+      redValueEl.getBoundingClientRect().width.toFixed(0) + 'px)',
+      near(redValueEl.getBoundingClientRect().width, valueWidthBefore, 1));
+    check('a three-digit reading leaves the label where it was (' +
+      labelLeftBefore.toFixed(0) + ' vs ' + redLabelEl.getBoundingClientRect().left.toFixed(0) + ')',
+      near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
+    levels[0].click();
+    check('the label stays put again at two digits',
+      near(redLabelEl.getBoundingClientRect().left, labelLeftBefore, 1));
 
     var lineVals = results.querySelectorAll('.breakdown .line-value');
     check('three breakdown values', lineVals.length === 3);
@@ -474,6 +518,10 @@
       first.querySelector('.slot-trigger').getBoundingClientRect().right;
     check('prot group narrower than its track (' + groupWidth.toFixed(0) +
       ' < ' + trackWidth.toFixed(0) + ')', groupWidth < trackWidth - 20);
+    var stepperRight = first.querySelector('.prot-stepper').getBoundingClientRect().right;
+    var numberGap = first.querySelector('.durability').getBoundingClientRect().left - stepperRight;
+    check('durability column hugs the control column (' + numberGap.toFixed(0) + 'px)',
+      mobile ? numberGap > 0 : near(numberGap, 28, 1));
 
     if (mobile) {
       var colRect = mount.querySelector('.controls').getBoundingClientRect();
