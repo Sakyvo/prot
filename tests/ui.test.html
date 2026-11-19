@@ -87,6 +87,14 @@
     check('results carry the ccl tag', results.querySelector('.dmg-tag').textContent.trim() === 'ccl');
     check('heart icon present',
       /assets\/textures\/heart\.png$/.test(results.querySelector('.heart-icon').src));
+    var heartIconEl = results.querySelector('.heart-icon');
+    var heartBox = heartIconEl.getBoundingClientRect();
+    check('heart renders at an integer 2x of its 17x16 sprite (' +
+      heartBox.width.toFixed(0) + 'x' + heartBox.height.toFixed(0) + ')',
+      heartBox.width === 34 && heartBox.height === 32 &&
+      heartBox.width / heartBox.height === 17 / 16);
+    check('heart sits 8px from the number',
+      near(heartBox.left - heartVal.getBoundingClientRect().right, 8, 1));
 
     ['helmet', 'chestplate', 'leggings', 'boots'].forEach(function (slot) {
       var row = mount.querySelector('[data-slot="' + slot + '"]');
@@ -166,10 +174,17 @@
     check('divider is 2px black',
       getComputedStyle(divider).borderTopColor === 'rgb(16, 20, 24)');
     check('results has no left divider', parseFloat(getComputedStyle(results).borderLeftWidth) === 0);
-    check('results width matches the block rule (' + results.getBoundingClientRect().width.toFixed(0) +
+    check('results width matches the panel row (' + results.getBoundingClientRect().width.toFixed(0) +
       ' vs ' + panels.getBoundingClientRect().width.toFixed(0) + ')',
-      mobile ? near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2)
-        : results.getBoundingClientRect().width < panels.getBoundingClientRect().width - 2);
+      near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2));
+
+    // the frame shrinks to its content, so the block itself is what gets centred
+    var frameRight = mount.getBoundingClientRect().right - parseFloat(getComputedStyle(mount).paddingRight);
+    check('frame hugs the panel row (' + panels.getBoundingClientRect().right.toFixed(0) +
+      ' vs ' + frameRight.toFixed(0) + ')', near(panels.getBoundingClientRect().right, frameRight, 1));
+    check('divider and results end with the panel row',
+      near(divider.getBoundingClientRect().right, panels.getBoundingClientRect().right, 1) &&
+      near(results.getBoundingClientRect().right, panels.getBoundingClientRect().right, 1));
 
     var bar = mount.querySelector('.mobile-bar');
     if (mobile) {
@@ -235,6 +250,10 @@
       }
     });
     check('dmg labels stay clear of their controls (' + crowded.join(',') + ')', crowded.length === 0);
+    var stepperRight = dmgPanel.querySelector('.dmg-stepper').getBoundingClientRect().right;
+    check('fist and weapon end on the stepper edge',
+      near(dmgPanel.querySelector('.fist-value').getBoundingClientRect().right, stepperRight, 1) &&
+      near(weaponInput.getBoundingClientRect().right, stepperRight, 1));
 
     // mode toggle: ccl computes, mnl takes the number as the pre-armor damage
     var modeBtns = dmgPanel.querySelectorAll('.mode');
