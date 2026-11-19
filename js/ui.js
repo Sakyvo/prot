@@ -6,7 +6,6 @@
   var Calc = root.ProtCalc;
   var TEX = 'assets/textures/';
   var STORE_KEY = 'prot.state';
-  var TABS = ['def', 'dmg'];
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -29,7 +28,6 @@
 
   function defaultState() {
     var state = {
-      tab: 'def',
       mode: 'ccl',
       slots: {},
       resistance: 0,
@@ -55,7 +53,6 @@
       });
       var res = parseInt(saved.resistance, 10);
       if (!isNaN(res) && res >= 0 && res <= 5) state.resistance = res;
-      if (saved.tab === 'def' || saved.tab === 'dmg') state.tab = saved.tab;
       if (saved.mode === 'ccl' || saved.mode === 'mnl') state.mode = saved.mode;
       // a pre-mode blob kept the value in `damage`; it now seeds the manual input
       if (typeof saved.manual === 'string') state.manual = saved.manual;
@@ -76,36 +73,15 @@
   function mount(container) {
     var state = loadState();
 
-    // ---- tabs + panels ----
-    var tabs = el('nav', 'tabs');
-    var tabEls = {};
-    var panelEls = {};
-
-    function setTab(id) {
-      state.tab = id;
-      TABS.forEach(function (name) {
-        if (tabEls[name]) tabEls[name].classList.toggle('is-active', name === id);
-        if (panelEls[name]) panelEls[name].hidden = name !== id;
-      });
-      save();
-    }
-
-    TABS.forEach(function (id) {
-      var b = el('button', 'tab', id);
-      b.type = 'button';
-      b.dataset.tab = id;
-      b.addEventListener('click', function () { setTab(id); });
-      tabEls[id] = b;
-      tabs.appendChild(b);
-    });
+    // ---- two standing panels: defense left, damage right ----
+    var panels = el('div', 'panels');
 
     var defPanel = el('section', 'panel');
     defPanel.dataset.panel = 'def';
+    defPanel.appendChild(el('p', 'panel-title', 'def'));
     var dmgPanel = el('section', 'panel');
     dmgPanel.dataset.panel = 'dmg';
-    dmgPanel.hidden = true;
-    panelEls.def = defPanel;
-    panelEls.dmg = dmgPanel;
+    dmgPanel.appendChild(el('p', 'panel-title', 'dmg'));
     var dmgControls = el('section', 'dmg-controls');
 
     function dmgRow(field, label, iconSrc) {
@@ -517,15 +493,14 @@
       levelInputs.weakness.value = '0';
       critBox.checked = false;
       setMode('ccl');
-      setTab('def');
       try { if (root.localStorage) root.localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
       closeReset();
       render();
     });
 
-    container.appendChild(tabs);
-    container.appendChild(defPanel);
-    container.appendChild(dmgPanel);
+    panels.appendChild(defPanel);
+    panels.appendChild(dmgPanel);
+    container.appendChild(panels);
     container.appendChild(divider);
     container.appendChild(results);
     container.appendChild(mobileBar);
@@ -533,11 +508,10 @@
 
     document.addEventListener('click', function () { closePopover(); });
 
-    setTab(state.tab);
     setMode(state.mode);
     render();
 
-    return { state: state, render: render, setTab: setTab };
+    return { state: state, render: render };
   }
 
   root.ProtUI = { mount: mount };

@@ -21,6 +21,7 @@
   --wash-strong: rgba(255, 255, 255, 0.78);
   --control-col: 240px;
   --prot-group: 200px;
+  --dmg-col: 150px;
   --stat-col: 186px;
 }
 
@@ -55,19 +56,11 @@ main {
   padding: 48px 0;
 }
 
-/* ---------- tabs ---------- */
+/* ---------- panels ---------- */
 
-.tabs { display: grid; grid-auto-flow: column; justify-content: start; gap: 28px; }
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
 
-.tab {
-  padding: 4px 12px;
-  color: var(--ink-soft);
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.tab:hover { background: var(--wash); }
-
-.tab.is-active { background: var(--ink); color: var(--ground); }
+.panel-title { margin: 0 0 18px; color: var(--ink-soft); }
 
 .divider { margin: 0; border: 0; border-top: 2px solid var(--ink); }
 
@@ -240,7 +233,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .dmg-row {
   display: grid;
-  grid-template-columns: 72px max-content 64px;
+  grid-template-columns: 72px var(--dmg-col) 64px;
   align-items: center;
   gap: 24px;
 }
@@ -264,7 +257,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .dmg-icon { width: 56px; height: 56px; display: block; object-fit: contain; }
 
 .fist-value {
-  width: 78px;
+  width: 100%;
   padding: 4px 6px;
   text-align: center;
   color: var(--ink-soft);
@@ -272,7 +265,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   font-variant-numeric: tabular-nums;
 }
 
-.weapon-input { width: 120px; padding-left: 10px; text-align: left; }
+.weapon-input { width: 100%; text-align: center; }
+
+.dmg-stepper { width: 100%; justify-content: space-between; }
 
 .crit-input { width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
 
@@ -415,9 +410,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     padding: 22px 20px 28px;
   }
 
-  .tabs { grid-auto-flow: row; gap: 8px; }
+  .panels { grid-template-columns: 1fr; gap: 20px; }
 
-  .tab { justify-self: stretch; text-align: left; }
+  .panel-title { margin-bottom: 12px; }
 
   .controls { gap: 14px; }
 
@@ -454,6 +449,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .prot-input { width: 62px; }
 
+  /* the weapon row fills the shared control column, not the stepper input width */
+  .weapon-input { width: 100%; }
+
   .stat-value { font-size: 26px; min-width: 0; }
 
   .results { grid-template-columns: repeat(2, minmax(0, max-content)); gap: 16px 20px; }
@@ -466,13 +464,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .dmg-controls { gap: 14px; }
 
-  .dmg-row { grid-template-columns: 72px max-content 40px; gap: 10px; }
+  .dmg-row { grid-template-columns: 64px var(--dmg-col) 40px; gap: 10px; }
 
   .mode-row { gap: 12px; }
 
   .dmg-icon { width: 44px; height: 44px; }
 
-  .weapon-input { width: 96px; }
+
 
   .damage-input { padding: 6px 10px; }
 

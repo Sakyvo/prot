@@ -130,24 +130,21 @@
     // the detail modal is gone: the full results block always sits on the page
     check('no detail modal', !mount.querySelector('.detail-modal'));
 
-    // ================= v6: tabs + full-width results =================
-    var tabs = mount.querySelector('.tabs');
-    check('tab bar exists', !!tabs);
-    var tabBtns = tabs ? tabs.querySelectorAll('.tab') : [];
-    check('two tabs', tabBtns.length === 2);
-    check('tab labels are def / dmg',
-      !!tabBtns[1] && tabBtns[0].textContent.trim() === 'def' && tabBtns[1].textContent.trim() === 'dmg');
+    // ================= v6: two standing panels + full-width results =================
+    check('no tab strip', !mount.querySelector('.tabs'));
+    var panels = mount.querySelector('.panels');
+    check('panel row exists', !!panels);
     var defPanel = mount.querySelector('.panel[data-panel="def"]');
     var dmgPanel = mount.querySelector('.panel[data-panel="dmg"]');
     check('two panels', !!defPanel && !!dmgPanel);
-    check('def tab active by default', tabBtns[0].classList.contains('is-active'));
-    check('def panel shown, dmg panel hidden', defPanel.hidden === false && dmgPanel.hidden === true);
-    tabBtns[1].click();
-    check('dmg tab switches panels', dmgPanel.hidden === false && defPanel.hidden === true);
-    check('dmg tab takes the active class',
-      tabBtns[1].classList.contains('is-active') && !tabBtns[0].classList.contains('is-active'));
-    tabBtns[0].click();
-    check('def tab switches back', defPanel.hidden === false && dmgPanel.hidden === true);
+    check('both panels stay visible',
+      getComputedStyle(defPanel).display !== 'none' && getComputedStyle(dmgPanel).display !== 'none' &&
+      !defPanel.hidden && !dmgPanel.hidden);
+    check('panels are titled def / dmg',
+      defPanel.querySelector('.panel-title').textContent.trim() === 'def' &&
+      dmgPanel.querySelector('.panel-title').textContent.trim() === 'dmg');
+    check('input works without touching a tab',
+      defPanel.querySelector('.slot-row') !== null && dmgPanel.querySelector('.weapon-input') !== null);
 
     var divider = mount.querySelector('.divider');
     check('divider exists', !!divider);
@@ -158,19 +155,19 @@
     check('divider spans the content frame (' + divider.getBoundingClientRect().width.toFixed(0) +
       ' vs ' + results.getBoundingClientRect().width.toFixed(0) + ')',
       near(divider.getBoundingClientRect().width, results.getBoundingClientRect().width, 2) &&
-      near(results.getBoundingClientRect().width, defPanel.getBoundingClientRect().width, 2));
+      near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2));
     check('divider is 2px black',
       getComputedStyle(divider).borderTopColor === 'rgb(16, 20, 24)');
     check('results has no left divider', parseFloat(getComputedStyle(results).borderLeftWidth) === 0);
-    check('results wider than a single control row (' + results.getBoundingClientRect().width.toFixed(0) +
-      ' vs ' + mount.querySelector('.slot-row').getBoundingClientRect().width.toFixed(0) + ')',
-      near(results.getBoundingClientRect().width,
-        mount.querySelector('.slot-row').getBoundingClientRect().width, 2));
+    check('results span both panel columns (' + results.getBoundingClientRect().width.toFixed(0) +
+      ' vs ' + panels.getBoundingClientRect().width.toFixed(0) + ')',
+      near(results.getBoundingClientRect().width, panels.getBoundingClientRect().width, 2));
 
     var bar = mount.querySelector('.mobile-bar');
     if (mobile) {
-      check('tabs stack vertically (' + tabs.getBoundingClientRect().height.toFixed(0) + 'px)',
-        tabs.getBoundingClientRect().height > tabBtns[0].getBoundingClientRect().height * 1.5);
+      check('panels stack vertically (def above dmg)', near(defPanel.getBoundingClientRect().left,
+        dmgPanel.getBoundingClientRect().left, 2) &&
+        defPanel.getBoundingClientRect().bottom <= dmgPanel.getBoundingClientRect().top + 1);
       check('mobile bar is fixed', getComputedStyle(bar).position === 'fixed');
       check('mobile bar pinned to viewport bottom (' + bar.getBoundingClientRect().bottom.toFixed(0) +
         ' vs ' + document.documentElement.clientHeight + ')',
@@ -189,8 +186,9 @@
         parseFloat(getComputedStyle(document.body).paddingBottom) > 0 ||
         parseFloat(getComputedStyle(mount).paddingBottom) >= bar.getBoundingClientRect().height);
     } else {
-      check('tabs sit in one row', near(tabBtns[0].getBoundingClientRect().top,
-        tabBtns[1].getBoundingClientRect().top, 2));
+      check('panels sit side by side (def left, dmg right)',
+        near(defPanel.getBoundingClientRect().top, dmgPanel.getBoundingClientRect().top, 2) &&
+        defPanel.getBoundingClientRect().right <= dmgPanel.getBoundingClientRect().left + 1);
       check('desktop hides the mobile bar', getComputedStyle(bar).display === 'none');
     }
 
@@ -215,8 +213,6 @@
     check('strength icon is named', !!strIcon && strIcon.title === 'strength');
     check('weakness icon is named', !!weakIcon && weakIcon.title === 'weakness');
 
-    // geometry only exists while the panel is on screen
-    tabBtns[1].click();
     var crowded = [];
     dmgPanel.querySelectorAll('.dmg-row').forEach(function (row) {
       var label = row.firstElementChild;
@@ -275,7 +271,16 @@
     weaponInput.dispatchEvent(new Event('input', { bubbles: true }));
     sharpInput.value = '0';
     sharpInput.dispatchEvent(new Event('input', { bubbles: true }));
-    tabBtns[0].click();
+
+    var fistBox = dmgPanel.querySelector('.fist-value').getBoundingClientRect();
+    var weaponBox = weaponInput.getBoundingClientRect();
+    var stepperBox = dmgPanel.querySelector('.dmg-stepper').getBoundingClientRect();
+    check('fist / weapon / stepper share one width (' + fistBox.width.toFixed(0) + ' / ' +
+      weaponBox.width.toFixed(0) + ' / ' + stepperBox.width.toFixed(0) + ')',
+      near(fistBox.width, weaponBox.width, 1) && near(weaponBox.width, stepperBox.width, 1));
+    check('fist and weapon end on the same edge',
+      near(fistBox.right, stepperBox.right, 1) && near(weaponBox.right, stepperBox.right, 1));
+    check('weapon number is centred', getComputedStyle(weaponInput).textAlign === 'center');
 
     var critBox = dmgPanel.querySelector('.crit-input');
     check('crit is a checkbox', !!critBox && critBox.type === 'checkbox');
@@ -539,7 +544,6 @@
     mount.querySelector('[data-slot="helmet"] .prot-input').dispatchEvent(new Event('input', { bubbles: true }));
     levels[2].click();
 
-    app.setTab('dmg');
     var weapon2 = mount.querySelector('.weapon-input');
     var sharp2 = mount.querySelector('.sharp-input');
     var str2 = mount.querySelector('.strength-input');
@@ -567,8 +571,6 @@
     check('restored iron helmet', app2.state.slots.helmet.material === 'iron');
     check('restored prot 3', app2.state.slots.helmet.prot === 3);
     check('restored resistance 2', app2.state.resistance === 2);
-    check('restored tab', app2.state.tab === 'dmg' &&
-      mount2.querySelector('.panel[data-panel="dmg"]').hidden === false);
     check('restored mode', app2.state.mode === 'mnl' &&
       mount2.querySelectorAll('.mode')[1].classList.contains('is-active'));
     check('restored attack inputs', app2.state.attack.weapon === '6' &&
@@ -594,9 +596,8 @@
       app.state.attack.weapon === '' && app.state.attack.sharpness === 0 &&
       app.state.attack.strength === 0 && app.state.attack.weakness === 0 &&
       app.state.attack.crit === false && app.state.manual === '');
-    check('confirm returns to the def tab and ccl mode',
-      app.state.tab === 'def' && app.state.mode === 'ccl' &&
-      mount.querySelector('.panel[data-panel="def"]').hidden === false);
+    check('confirm returns to ccl mode', app.state.mode === 'ccl' &&
+      mount.querySelectorAll('.mode')[0].classList.contains('is-active'));
     var afterReset = window.localStorage.getItem('prot.state');
     check('reset leaves no legacy damage field', !!afterReset && afterReset.indexOf('"damage"') === -1);
     check('confirm clears storage (' + afterReset + ')',
@@ -613,7 +614,6 @@
     var app4 = ProtUI.mount(mount4);
     check('legacy damage becomes the manual value', app4.state.manual === '12');
     check('legacy blob opens in ccl', app4.state.mode === 'ccl');
-    check('legacy blob opens on the def tab', app4.state.tab === 'def');
     check('legacy manual value reaches the input',
       mount4.querySelector('.manual-input').value === '12');
     check('legacy blob keeps its armor', app4.state.slots.helmet.material === 'iron' &&
