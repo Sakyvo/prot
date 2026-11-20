@@ -486,7 +486,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   .stat-value { font-size: 26px; }
 
-  .panel[data-panel="def"] { padding-right: 0; border-right: 0; }
+  /* stacked: the column rule turns into a horizontal one between the panels */
+  .panel[data-panel="def"] { padding: 0 0 20px; border-right: 0; border-bottom: 2px solid var(--ink); }
+
+  /* the fixed bar owns the headline pair; the page body keeps the details */
+  .results > .stat { display: none; }
 
   .divider, .results { width: 100%; }
 
